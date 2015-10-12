@@ -8,6 +8,7 @@ struct ClientFileContent {
 
 void deleteSubstring(char *original_string,const char *sub_string);
 void parse_client_conf_file(struct ClientFileContent *params, char *file_name);
+int handle_get (char *get_command);
 int handle_put (char *put_command);
 void handle_list ();
 //void handle_list (char *list_of_files);
@@ -33,7 +34,7 @@ printf("|   To upload a file, enter PUT <name_of_file>  |\n");
 printf("|     To exit the DFC, enter Exit               |\n");
 printf("*-----------------------------------------------*\n");
   char user_input[100];
-  char *server_file_list;
+  //char *server_file_list;
 
   while (1) {
     while (fgets(user_input, 100, stdin)) {
@@ -49,23 +50,59 @@ printf("*-----------------------------------------------*\n");
         handle_put(user_input);
       }
 
+      if (strncmp(user_input, "GET", strlen("GET")) == 0) {
+        handle_get(user_input);
+      }
+
     }
   }
   free (client_params.username);
   free (client_params.password);
 }
 
+/*-------------------------------------------------------------------------------------------------------
+ * handle_get - this function will be responsible for downloading the selected file from the DFS servers
+ *------------------------------------------------------------------------------------------------------- */
+int handle_get (char *get_command) {
 
+  /* Structs needed to be able to call the stat function which checks for file presence */
+  struct stat buffer;
+  /* file_name used in strtok_r to capture content after space, read_line is buffer that fgets writes to */
+  char *file_name, read_line[200], *extra_args;
+
+  /*-----------------------------------
+   * Error Checking / Input Validation
+   *----------------------------------- */
+  /* Extract the second word from the PUT command (the filename) and strip it of newline character */
+  strtok_r(get_command, " ", &file_name);
+  if (file_name == NULL) {
+    printf("You have not specified a file to download. Please try again...\n");
+    return 1;
+  }
+
+  /* Extract any potential arguments following our file name which should not be there */
+  strtok_r(file_name, " ", &extra_args);
+  if (extra_args != NULL) {
+    printf("You have specified too many arguments. Please try again...\n");
+    return 1;
+  }
+
+  /*------------------------
+   * File Download Operations
+   *------------------------*/
+}
 /*-------------------------------------------------------------------------------------------------------
  * handle_put - this function will be responsible for uploading all the files available on the DFS servers
  *------------------------------------------------------------------------------------------------------- */
 int handle_put (char *put_command) {
   /* Structs needed to be able to call the stat function which checks for file presence */
   struct stat buffer;
-
   /* file_name used in strtok_r to capture content after space, read_line is buffer that fgets writes to */
   char *file_name, read_line[200], *extra_args;
 
+  /*-----------------------------------
+   * Error Checking / Input Validation
+   *----------------------------------- */
   /* Extract the second word from the PUT command (the filename) and strip it of newline character */
   strtok_r(put_command, " ", &file_name);
   if (file_name == NULL) {
@@ -84,16 +121,39 @@ int handle_put (char *put_command) {
     printf("The file you have tried to upload does exist, please try again\n");
     return 1;
   }
+  /*------------------------
+   * File Upload Operations
+   *------------------------*/
   FILE *file_to_upload;
+  ssize_t file_size;
+  ssize_t file_size_copy;
+  ssize_t portion_one_size, portion_two_size, portion_three_size, portion_four_size;
+  file_size = buffer.st_size; 
+  file_size_copy = file_size;
+
+  printf("The size of the original file is %zd\n", file_size); 
+
+  portion_one_size = file_size / 4;
+  printf("The size of the first portion is %zd\n", portion_one_size); 
+  file_size_copy -= portion_one_size;
+
+  portion_two_size = file_size / 4;
+  printf("The size of the second portion is %zd\n", portion_two_size); 
+  file_size_copy -= portion_two_size;
+
+  portion_three_size = file_size / 4;
+  file_size_copy -= portion_one_size;
+  printf("The size of the third portion is %zd\n", portion_three_size); 
+
+  portion_four_size = file_size_copy;
+  printf("The size of the fourth portion is %zd\n", portion_four_size); 
+
   file_to_upload = fopen(file_name, "r");
   if (file_to_upload == NULL) {
     perror("Opening user file: ");
     exit(-1);
   }
-  printf("here are the contents of the file you wish to upload\n");
-  while (fgets (read_line,200, file_to_upload) != NULL) {
-    printf("%s\n", read_line);
-  }
+  return 0;
 }
 
 /*-------------------------------------------------------------------------------------------------------
