@@ -1,4 +1,4 @@
-#include "../server.h"
+#include "server.h"
 
 int main(int argc, char ** argv)
 {
@@ -20,8 +20,13 @@ int main(int argc, char ** argv)
 
   /* Create main socket, bind, have it listen */
   main_socket = setup_socket(port_number, MAX_CLIENTS);
-  while (1)
+  int client_socket, read_size, c;
+  char client_message[2000];
+  client_socket = accept(main_socket, (struct sockaddr *)&client, (socklen_t*)&c);
+
+  while( (read_size = recv(client_socket, client_message, 2000, 0)) > 0)
   {
+    printf("%s\n", client_message);
   }
 }
 /*-------------------------------------------------------------------------------------------------------------------------------------------
