@@ -133,25 +133,21 @@ int handle_put (char *put_command, struct ClientFileContent *params) {
   char portion_one_filename[sizeof(generic_filename) + sizeof(file_name) + 1];
   memset(&portion_one_filename, 0, sizeof(portion_one_filename));
   snprintf(portion_one_filename, sizeof(portion_one_filename), generic_filename, 1, file_name);
-  printf("This is the filename of the first portion: %s\n", portion_one_filename);
 
   /* Construct filename for second portion of original file */
   char portion_two_filename[sizeof(generic_filename) + sizeof(file_name) + 1];
   memset(&portion_two_filename, 0, sizeof(portion_two_filename));
   snprintf(portion_two_filename, sizeof(portion_two_filename), generic_filename, 2, file_name);
-  printf("This is the filename of the second portion: %s\n", portion_two_filename);
 
   /* Construct filename for third portion of original file */
   char portion_three_filename[sizeof(generic_filename) + sizeof(file_name) + 1];
   memset(&portion_three_filename, 0, sizeof(portion_three_filename));
   snprintf(portion_three_filename, sizeof(portion_three_filename), generic_filename, 3, file_name);
-  printf("This is the filename of the third portion: %s\n", portion_three_filename);
 
   /* Construct filename for fourth portion of original file */
   char portion_four_filename[sizeof(generic_filename) + sizeof(file_name) + 1];
   memset(&portion_four_filename, 0, sizeof(portion_four_filename));
   snprintf(portion_four_filename, sizeof(portion_four_filename), generic_filename, 4, file_name);
-  printf("This is the filename of the fourth portion: %s\n\n", portion_four_filename);
 
 
 
@@ -164,19 +160,15 @@ int handle_put (char *put_command, struct ClientFileContent *params) {
   printf("The size of the original file is %zd\n", file_size); 
 
   portion_one_size = file_size / 4;
-  printf("The size of the first portion is %zd\n", portion_one_size); 
   file_size_copy -= portion_one_size;
 
   portion_two_size = file_size / 4;
-  printf("The size of the second portion is %zd\n", portion_two_size); 
   file_size_copy -= portion_two_size;
 
   portion_three_size = file_size / 4;
   file_size_copy -= portion_one_size;
-  printf("The size of the third portion is %zd\n", portion_three_size); 
 
   portion_four_size = file_size_copy;
-  printf("The size of the fourth portion is %zd\n", portion_four_size); 
 
   file_to_upload = fopen(file_name, "r");
   if (file_to_upload == NULL) { perror("Opening user file: ");
@@ -187,25 +179,21 @@ int handle_put (char *put_command, struct ClientFileContent *params) {
   char portion_one_buffer [portion_one_size];
   fread(portion_one_buffer, 1, portion_one_size, file_to_upload);
   portion_one_buffer[portion_one_size] = '\0';
-  printf("this is the result of reading the first fourth of the file into the buffer: %s\n", portion_one_buffer);
   fwrite(portion_one_buffer, 1, portion_one_size, file_portion_one);
 
   char portion_two_buffer [portion_two_size];
   fread(portion_two_buffer, 1, portion_two_size, file_to_upload);
   portion_two_buffer[portion_two_size] = '\0';
-  printf("this is the result of reading the third fourth of the file into the buffer: %s\n", portion_two_buffer);
   fwrite(portion_two_buffer, 1, portion_two_size, file_portion_one);
 
   char portion_three_buffer [portion_three_size];
   fread(portion_three_buffer, 1, portion_three_size, file_to_upload);
   portion_three_buffer[portion_three_size] = '\0';
-  printf("this is the result of reading the second fourth of the file into the buffer: %s\n", portion_three_buffer);
   fwrite(portion_three_buffer, 1, portion_three_size, file_portion_one);
 
   char portion_four_buffer [portion_four_size];
   fread(portion_four_buffer, 1, portion_four_size, file_to_upload);
   portion_four_buffer[portion_four_size] = '\0';
-  printf("this is the result of reading the fourth fourth of the file into the buffer: %s\n", portion_four_buffer);
   fwrite(portion_four_buffer, 1, portion_one_size, file_portion_one);
 
   /*------------------------
@@ -235,14 +223,12 @@ int handle_put (char *put_command, struct ClientFileContent *params) {
     construct_put_message((char *)&portion_three_filename, (char *)&portion_three_size_char, (char *)&portion_three_buffer, params, (char *)&portion_three_message);
     construct_put_message((char *)&portion_four_filename, (char *)&portion_four_size_char, (char *)&portion_four_buffer, params, (char *)&portion_four_message);
 
-    printf("!!!!!!!!!!!!!!!!!\n\n");
-    printf("The size of portion one message is %zu\n", sizeof(portion_one_message));
-    printf("The length of portion one message is %zu\n", strlen(portion_one_message));
-    printf("This is our portion one message so far: \n%s\n", portion_one_message);
+    printf("Portion one: \n%s\n", portion_one_message);
+    printf("\nPortion two: \n%s\n", portion_two_message);
+    printf("\nPortion three: \n%s\n", portion_three_message);
+    printf("\nPortion four: \n%s\n", portion_four_message);
 
 
-
-    /*
     sock1 = socket(AF_INET, SOCK_STREAM, 0);
     if (sock1 == -1)
       printf("Could not create socket\n");
@@ -257,16 +243,12 @@ int handle_put (char *put_command, struct ClientFileContent *params) {
     }
     printf("connected\n");
 
-    while (1) {
-      printf("Enter message : \n");
-      scanf("%s" , message);
-
-      if ( send(sock1, message, strlen(message) , 0) < 0) {
-          puts ("send failed");
-          return 1;
-        }
+    ssize_t total_read_bytes;
+    total_read_bytes = 0;
+    while (total_read_bytes != sizeof(portion_one_message)) {
+      total_read_bytes = send(sock1, portion_one_message, sizeof(portion_one_message), 0);
+      printf("I just read %zu bytes and the size of portion_one_size is %zu\n", total_read_bytes, portion_one_size);
     }
-    */
     return 0;
 
 }
