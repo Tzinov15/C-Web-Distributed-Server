@@ -125,9 +125,41 @@ int handle_put (char *put_command) {
    * File Upload Operations
    *------------------------*/
   FILE *file_to_upload;
+
+  char generic_filename [] = "%d.%s";
+
+  /* Construct filename for first portion of original file */
+  char portion_one_filename[sizeof(generic_filename) + sizeof(file_name) + 1];
+  memset(&portion_one_filename, 0, sizeof(portion_one_filename));
+  snprintf(portion_one_filename, sizeof(portion_one_filename), generic_filename, 1, file_name);
+  printf("This is the filename of the first portion: %s\n", portion_one_filename);
+
+  /* Construct filename for second portion of original file */
+  char portion_two_filename[sizeof(generic_filename) + sizeof(file_name) + 1];
+  memset(&portion_two_filename, 0, sizeof(portion_two_filename));
+  snprintf(portion_two_filename, sizeof(portion_two_filename), generic_filename, 2, file_name);
+  printf("This is the filename of the second portion: %s\n", portion_two_filename);
+
+  /* Construct filename for third portion of original file */
+  char portion_three_filename[sizeof(generic_filename) + sizeof(file_name) + 1];
+  memset(&portion_three_filename, 0, sizeof(portion_three_filename));
+  snprintf(portion_three_filename, sizeof(portion_three_filename), generic_filename, 3, file_name);
+  printf("This is the filename of the third portion: %s\n", portion_three_filename);
+
+  /* Construct filename for fourth portion of original file */
+  char portion_four_filename[sizeof(generic_filename) + sizeof(file_name) + 1];
+  memset(&portion_four_filename, 0, sizeof(portion_four_filename));
+  snprintf(portion_four_filename, sizeof(portion_four_filename), generic_filename, 4, file_name);
+  printf("This is the filename of the fourth portion: %s\n", portion_four_filename);
+
+  FILE *file_portion_one = fopen(portion_one_filename, "w");
+  fprintf(file_portion_one, "Testing...\n");
+  fclose(file_portion_one);
+
   ssize_t file_size;
   ssize_t file_size_copy;
   ssize_t portion_one_size, portion_two_size, portion_three_size, portion_four_size;
+
   file_size = buffer.st_size; 
   file_size_copy = file_size;
 
