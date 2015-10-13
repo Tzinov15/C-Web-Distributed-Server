@@ -233,6 +233,9 @@ int handle_put (char *put_command, struct ClientFileContent *params) {
   printf("\nPortion four: \n%s\n", portion_four_message);
 
   send_to_server((char *)&portion_one_message, 1, params);
+  send_to_server((char *)&portion_two_message, 2, params);
+  send_to_server((char *)&portion_three_message, 3, params);
+  send_to_server((char *)&portion_four_message, 4, params);
 
 
   return 0;
@@ -240,9 +243,11 @@ int handle_put (char *put_command, struct ClientFileContent *params) {
 }
 
 void send_to_server(char *message, int server_number, struct ClientFileContent *params) {
-  printf("This is the information we have on the first server:\n");
-  printf("Server #%s Address: %s\n", params->servers[0], params->addresses[0]);
-  printf("Server #%s Port: %s\n", params->servers[0], params->ports[0]);
+  printf("Currently sending to server with these configurations\n");
+  printf("Server #%s Address: %s\n", params->servers[server_number-1], params->addresses[server_number-1]);
+  printf("Server #%s Port: %s\n", params->servers[server_number-1], params->ports[server_number-1]);
+  printf("Message contents \n%s\n", message);
+  printf("Message size %zu\n", strlen(message));
 
   int sock;
 
@@ -255,25 +260,22 @@ void send_to_server(char *message, int server_number, struct ClientFileContent *
   int port_number;
   port_number = atoi(params->ports[server_number-1]);
 
-  printf("This is the read in port number %d\n", port_number);
   server.sin_addr.s_addr = INADDR_ANY;
   server.sin_family = AF_INET;
   server.sin_port = htons(port_number);
 
   if (connect(sock, (struct sockaddr *)&server, sizeof(server)) < 0){
     perror("connect failed. Error\n");
-    exit(1);;
+    exit(1);
   }
   printf("connected\n");
 
-  /*
-     ssize_t total_read_bytes;
-     total_read_bytes = 0;
-     while (total_read_bytes != sizeof(portion_one_message)) {
-     total_read_bytes = send(sock1, portion_one_message, sizeof(portion_one_message), 0);
-     printf("I just read %zu bytes and the size of portion_one_size is %zu\n", total_read_bytes, portion_one_size);
-     }
-     */
+  ssize_t total_read_bytes;
+  total_read_bytes = 0;
+  while (total_read_bytes != strlen(message)) {
+    total_read_bytes = send(sock, message, strlen(message), 0);
+    printf("I just read %zu bytes\n", total_read_bytes);
+  }
 }
 void construct_put_message(char *filename, char *filesize, char *filecontent, struct ClientFileContent *params, char *final_message) {
   strcpy(final_message, "PUT ");

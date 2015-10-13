@@ -4,14 +4,20 @@ int main(int argc, char ** argv)
 {
   printf("| Welcome to DFS1! |\n\n");
 
+  if (argc < 2) {
+    printf("Please specify a directory and port number file\n");
+    exit(1); }
+  if (argc < 3) {
+    printf("Please specify a port number \n");
+    exit(1); }
   int main_socket, cli, pid, port_number;
+  port_number = atoi(argv[2]);
   struct TextfileData system_config_data;
   struct sockaddr_in client;
   unsigned int sockaddr_len = sizeof(struct sockaddr_in);
 
   /* Read in conf file and populate struct */
   setup_server(&system_config_data); 
-  port_number = 10001;
 
   printf("---------------------------------------\n");
   printf("|CURRENT SERVER SETUP: \n");
