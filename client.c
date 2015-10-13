@@ -3,9 +3,14 @@
 struct ClientFileContent {
   char *username;
   char *password;
+  char servers[10][1];
+  char ports[10][10];
+  char addresses[10][16];
+
 };
 
 
+void send_to_server(char *message, int server_number, struct ClientFileContent *params);
 void construct_put_message(char *filename, char *filesize, char *filecontent, struct ClientFileContent *params, char *final_message);
 void deleteSubstring(char *original_string,const char *sub_string);
 void parse_client_conf_file(struct ClientFileContent *params, char *file_name);
@@ -27,12 +32,12 @@ int main(int argc, char ** argv) {
   parse_client_conf_file(&client_params, argv[1]);
 
 
-printf("*-----------------------------------------------*\n");
-printf("|  To see of a list of your files, enter LIST   |\n");
-printf("|  To download a file, enter GET <name_of_file> |\n");
-printf("|   To upload a file, enter PUT <name_of_file>  |\n");
-printf("|     To exit the DFC, enter Exit               |\n");
-printf("*-----------------------------------------------*\n");
+  printf("*-----------------------------------------------*\n");
+  printf("|  To see of a list of your files, enter LIST   |\n");
+  printf("|  To download a file, enter GET <name_of_file> |\n");
+  printf("|   To upload a file, enter PUT <name_of_file>  |\n");
+  printf("|     To exit the DFC, enter Exit               |\n");
+  printf("*-----------------------------------------------*\n");
   char user_input[100];
   //char *server_file_list;
 
@@ -197,73 +202,90 @@ int handle_put (char *put_command, struct ClientFileContent *params) {
   fwrite(portion_four_buffer, 1, portion_one_size, file_portion_one);
 
   /*------------------------
-     * Socket Sending 
+   * Socket Sending 
    *------------------------*/
-    int sock1, sock2, sock3, sock4;
-    struct sockaddr_in server1;
-    struct sockaddr_in server2;
-    struct sockaddr_in server3;
-    struct sockaddr_in server4;
+  int sock1, sock2, sock3, sock4;
+  struct sockaddr_in server2;
+  struct sockaddr_in server3;
+  struct sockaddr_in server4;
 
-    char message[100];
-    char portion_one_size_char[16], portion_two_size_char[16], portion_three_size_char[16], portion_four_size_char[16];
-    snprintf(portion_one_size_char, sizeof(portion_one_size_char), "%zu", portion_one_size);
-    snprintf(portion_two_size_char, sizeof(portion_two_size_char), "%zu", portion_two_size);
-    snprintf(portion_three_size_char, sizeof(portion_three_size_char), "%zu", portion_three_size);
-    snprintf(portion_four_size_char, sizeof(portion_four_size_char), "%zu", portion_four_size);
-
-
-    char portion_one_message[sizeof("PUT ") + sizeof(portion_one_filename) + 8 + sizeof(params->username) + sizeof(params->password) + portion_one_size];
-    char portion_two_message[sizeof("PUT ") + sizeof(portion_two_filename) + 8 + sizeof(params->username) + sizeof(params->password) + portion_two_size];
-    char portion_three_message[sizeof("PUT ") + sizeof(portion_three_filename) + 8 + sizeof(params->username) + sizeof(params->password) + portion_three_size];
-    char portion_four_message[sizeof("PUT ") + sizeof(portion_four_filename) + 8 + sizeof(params->username) + sizeof(params->password) + portion_four_size];
-
-    construct_put_message((char *)&portion_one_filename, (char *)&portion_one_size_char, (char *)&portion_one_buffer, params, (char *)&portion_one_message);
-    construct_put_message((char *)&portion_two_filename, (char *)&portion_two_size_char, (char *)&portion_two_buffer, params, (char *)&portion_two_message);
-    construct_put_message((char *)&portion_three_filename, (char *)&portion_three_size_char, (char *)&portion_three_buffer, params, (char *)&portion_three_message);
-    construct_put_message((char *)&portion_four_filename, (char *)&portion_four_size_char, (char *)&portion_four_buffer, params, (char *)&portion_four_message);
-
-    printf("Portion one: \n%s\n", portion_one_message);
-    printf("\nPortion two: \n%s\n", portion_two_message);
-    printf("\nPortion three: \n%s\n", portion_three_message);
-    printf("\nPortion four: \n%s\n", portion_four_message);
+  char message[100];
+  char portion_one_size_char[16], portion_two_size_char[16], portion_three_size_char[16], portion_four_size_char[16];
+  snprintf(portion_one_size_char, sizeof(portion_one_size_char), "%zu", portion_one_size);
+  snprintf(portion_two_size_char, sizeof(portion_two_size_char), "%zu", portion_two_size);
+  snprintf(portion_three_size_char, sizeof(portion_three_size_char), "%zu", portion_three_size);
+  snprintf(portion_four_size_char, sizeof(portion_four_size_char), "%zu", portion_four_size);
 
 
-    sock1 = socket(AF_INET, SOCK_STREAM, 0);
-    if (sock1 == -1)
-      printf("Could not create socket\n");
+  char portion_one_message[sizeof("PUT ") + sizeof(portion_one_filename) + 8 + sizeof(params->username) + sizeof(params->password) + portion_one_size];
+  char portion_two_message[sizeof("PUT ") + sizeof(portion_two_filename) + 8 + sizeof(params->username) + sizeof(params->password) + portion_two_size];
+  char portion_three_message[sizeof("PUT ") + sizeof(portion_three_filename) + 8 + sizeof(params->username) + sizeof(params->password) + portion_three_size];
+  char portion_four_message[sizeof("PUT ") + sizeof(portion_four_filename) + 8 + sizeof(params->username) + sizeof(params->password) + portion_four_size];
 
-    server1.sin_addr.s_addr = INADDR_ANY;
-    server1.sin_family = AF_INET;
-    server1.sin_port = htons( 10001);
+  construct_put_message((char *)&portion_one_filename, (char *)&portion_one_size_char, (char *)&portion_one_buffer, params, (char *)&portion_one_message);
+  construct_put_message((char *)&portion_two_filename, (char *)&portion_two_size_char, (char *)&portion_two_buffer, params, (char *)&portion_two_message);
+  construct_put_message((char *)&portion_three_filename, (char *)&portion_three_size_char, (char *)&portion_three_buffer, params, (char *)&portion_three_message);
+  construct_put_message((char *)&portion_four_filename, (char *)&portion_four_size_char, (char *)&portion_four_buffer, params, (char *)&portion_four_message);
 
-    if (connect(sock1, (struct sockaddr *)&server1, sizeof(server1)) < 0){
-      perror("connect failed. Error\n");
-      return 1;
-    }
-    printf("connected\n");
+  printf("Portion one: \n%s\n", portion_one_message);
+  printf("\nPortion two: \n%s\n", portion_two_message);
+  printf("\nPortion three: \n%s\n", portion_three_message);
+  printf("\nPortion four: \n%s\n", portion_four_message);
 
-    ssize_t total_read_bytes;
-    total_read_bytes = 0;
-    while (total_read_bytes != sizeof(portion_one_message)) {
-      total_read_bytes = send(sock1, portion_one_message, sizeof(portion_one_message), 0);
-      printf("I just read %zu bytes and the size of portion_one_size is %zu\n", total_read_bytes, portion_one_size);
-    }
-    return 0;
+  send_to_server((char *)&portion_one_message, 1, params);
+
+
+  return 0;
 
 }
 
+void send_to_server(char *message, int server_number, struct ClientFileContent *params) {
+  printf("This is the information we have on the first server:\n");
+  printf("Server #%s Address: %s\n", params->servers[0], params->addresses[0]);
+  printf("Server #%s Port: %s\n", params->servers[0], params->ports[0]);
+
+  int sock;
+
+  sock = socket(AF_INET, SOCK_STREAM, 0);
+
+  if (sock == -1)
+    printf("Could not create socket\n");
+
+  struct sockaddr_in server;
+  int port_number;
+  port_number = atoi(params->ports[server_number-1]);
+
+  printf("This is the read in port number %d\n", port_number);
+  server.sin_addr.s_addr = INADDR_ANY;
+  server.sin_family = AF_INET;
+  server.sin_port = htons(port_number);
+
+  if (connect(sock, (struct sockaddr *)&server, sizeof(server)) < 0){
+    perror("connect failed. Error\n");
+    exit(1);;
+  }
+  printf("connected\n");
+
+  /*
+     ssize_t total_read_bytes;
+     total_read_bytes = 0;
+     while (total_read_bytes != sizeof(portion_one_message)) {
+     total_read_bytes = send(sock1, portion_one_message, sizeof(portion_one_message), 0);
+     printf("I just read %zu bytes and the size of portion_one_size is %zu\n", total_read_bytes, portion_one_size);
+     }
+     */
+}
 void construct_put_message(char *filename, char *filesize, char *filecontent, struct ClientFileContent *params, char *final_message) {
-    strcpy(final_message, "PUT ");
-    strcat(final_message, filename);
-    strcat(final_message, " ");
-    strcat(final_message, filesize);
-    strcat(final_message, "\n");
-    strcat(final_message, params->username);
-    strcat(final_message, "\n");
-    strcat(final_message, params->password);
-    strcat(final_message, "\n");
-    strcat(final_message, filecontent);
+  strcpy(final_message, "PUT ");
+  strcat(final_message, filename);
+  strcat(final_message, " ");
+  strcat(final_message, filesize);
+  strcat(final_message, "\n");
+  strcat(final_message, params->username);
+  strcat(final_message, "\n");
+  strcat(final_message, params->password);
+  strcat(final_message, "\n");
+  strcat(final_message, filecontent);
 }
 
 /*-------------------------------------------------------------------------------------------------------
@@ -271,8 +293,8 @@ void construct_put_message(char *filename, char *filesize, char *filecontent, st
  *------------------------------------------------------------------------------------------------------- */
 //void handle_list (char *list_of_files) {
 void handle_list () {
-printf("Hello form handle_list\n");
-printf("1.txt \n 2.txt \n 3.txt");
+  printf("Hello form handle_list\n");
+  printf("1.txt \n 2.txt \n 3.txt");
 }
 /*--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  * parse_client_conf_file - this function takes in a file name and the client params struct, and will popuate the struct after parsing and extracting info from the dfc.conf file 
@@ -298,7 +320,23 @@ void parse_client_conf_file(struct ClientFileContent *params, char *file_name) {
     exit(-1);
   }
 
+
+  int current_server;
+  current_server = 0;
+  char *token;
   while (fgets (read_line,200, config_file) != NULL) {
+    /* Extract the address, port, server number information */
+    if(strstr(read_line, "Server") != NULL) {
+      token = strtok(read_line, " ");
+      token = strtok(NULL, " ");
+      strcpy(params->servers[current_server], token);
+      token = strtok(NULL, ":");
+      strcpy(params->addresses[current_server], token);
+      token = strtok(NULL, ":");
+      strcpy(params->ports[current_server], token);
+      current_server++;
+    }
+
     /* Extract the user name field */
     if(strstr(read_line, "Username") != NULL) {
       strtok_r(read_line, " ", &leftover);
