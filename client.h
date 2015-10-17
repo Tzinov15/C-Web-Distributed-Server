@@ -22,24 +22,24 @@ struct ClientFileContent {
 };
 
 struct FileDistributionCombination {
-  int hash_modulo_value;
-  int server1_files[2];
-  int server2_files[2];
-  int server3_files[2];
-  int server4_files[2];
+  int portion_one_servers[8];
+  int portion_two_servers[8];
+  int portion_three_servers[8];
+  int portion_four_servers[8];
 };
 
-struct FileCombos {
-  struct FileDistributionCombination x0;
-  struct FileDistributionCombination x1;
-  struct FileDistributionCombination x2;
-  struct FileDistributionCombination x3;
-};
+static struct FileDistributionCombination destination_matrix = {
+  {4,1,1,2,2,3,3,4},
+  {1,2,2,3,3,4,4,1},
+  {2,3,3,4,4,1,1,1},
+  {3,4,4,1,1,2,2,3}};
 
 
 
 
-void setup_file_matrix(struct FileCombos *matrix);
+
+// void setup_file_matrix(struct FileCombos *matrix);
+int create_socket_to_server(int server_number, struct ClientFileContent *params);
 void send_to_server(char *message, int server_number, struct ClientFileContent *params);
 void construct_put_message(char *filename, char *filesize, char *filecontent, struct ClientFileContent *params, char *final_message);
 void deleteSubstring(char *original_string,const char *sub_string);

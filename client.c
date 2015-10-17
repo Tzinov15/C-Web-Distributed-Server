@@ -1,9 +1,5 @@
 #include "client.h"
 int main(int argc, char ** argv) {
-
-  struct FileCombos destination_matrix;
-  setup_file_matrix(&destination_matrix);
-
   printf("| Welcome to this wonderful C client! |\n\n");
 
   struct ClientFileContent client_params;
@@ -50,71 +46,6 @@ int main(int argc, char ** argv) {
 }
 
 
-void setup_file_matrix(struct FileCombos *matrix) {
-
-  struct FileDistributionCombination combo0;
-  combo0.hash_modulo_value = 0;
-
-  combo0.server1_files[0] = 1;
-  combo0.server1_files[1] = 2;
-
-  combo0.server2_files[0] = 2;
-  combo0.server2_files[1] = 3;
-
-  combo0.server3_files[0] = 3;
-  combo0.server3_files[1] = 4;
-
-  combo0.server4_files[0] = 4;
-  combo0.server4_files[1] = 1;
-
-  
-  struct FileDistributionCombination combo1;
-  combo1.hash_modulo_value = 1;
-  combo1.server1_files[0] = 4;
-  combo1.server1_files[1] = 1;
-
-  combo1.server2_files[0] = 1;
-  combo1.server2_files[1] = 2;
-
-  combo1.server3_files[0] = 2;
-  combo1.server3_files[1] = 3;
-
-  combo1.server4_files[0] = 3;
-  combo1.server4_files[1] = 4;
-
-  struct FileDistributionCombination combo2;
-  combo2.hash_modulo_value = 2;
-  combo2.server1_files[0] = 3;
-  combo2.server1_files[1] = 4;
-
-  combo2.server2_files[0] = 4;
-  combo2.server2_files[1] = 1;
-
-  combo2.server3_files[0] = 1;
-  combo2.server3_files[1] = 2;
-
-  combo2.server4_files[0] = 2;
-  combo2.server4_files[1] = 3;
-  
-  struct FileDistributionCombination combo3;
-  combo3.hash_modulo_value = 3;
-  combo3.server1_files[0] = 2;
-  combo3.server1_files[1] = 3;
-
-  combo3.server2_files[0] = 3;
-  combo3.server2_files[1] = 4;
-
-  combo3.server3_files[0] = 4;
-  combo3.server3_files[1] = 1;
-
-  combo3.server4_files[0] = 1;
-  combo3.server4_files[1] = 2;
-
-  matrix->x0 = combo0;
-  matrix->x1 = combo1;
-  matrix->x2 = combo2;
-  matrix->x3 = combo3;
-}
 /*-------------------------------------------------------------------------------------------------------
  * handle_get - this function will be responsible for downloading the selected file from the DFS servers
  *------------------------------------------------------------------------------------------------------- */
@@ -147,6 +78,9 @@ int handle_get (char *get_command) {
    *------------------------*/
   return 0;
 }
+/*-------------------------------------------------------------------------------------------------------
+ * calculate_hash_modulo_value - this function will take in the file name, open the file, calculate the hash, extract the last byte, perform a modulo 4 operation on the decimal value of the last byte of the hash, return val
+ *------------------------------------------------------------------------------------------------------- */
 int calculate_hash_modulo_value(char * file_name)
 {
 printf("Hello from calculate_hash_modulo_value\n");
@@ -204,10 +138,9 @@ int handle_put (char *put_command, struct ClientFileContent *params) {
     return 1;
   }
 
+  /* Actually open the file that the user specified from the command line */
   FILE *users_file;
   users_file = fopen(file_name, "r");
-  /* Actually open the file that the user specified from the command line */
-
   if (users_file == NULL) { 
     perror("Opening user file: ");
     exit(-1); 
@@ -275,10 +208,49 @@ int handle_put (char *put_command, struct ClientFileContent *params) {
 
   portion_four_size = file_size_copy;
 
+  int server_one;
 
-  /* The following code will create a seperate buffer for each portion of the file, read in the correct number of bytes for that portion from the users file, then add the string-terminating character '\0' */
+  server_one = create_socket_to_server(1, params);
+  ssize_t read_bytes;
+  ssize_t written_bytes;
+  ssize_t total_read_bytes;
+  ssize_t total_written_bytes;
+  char data_buffer[1024];
+
+  /* The following code will create a seperate data_buffer for each portion of the file, read in the correct number of bytes for that portion from the users file, then add the string-terminating character '\0' */
   /* This is the code that breaks up the users file into four seperate chunks */
-  char portion_one_buffer [portion_one_size];
+  ssize_t portion_one_size_copy;
+  portion_one_size_copy = portion_one_size;
+  total_read_bytes = 0;
+  total_written_bytes = 0;
+  while (total_read_bytes != portion_one_size) {
+    if (portion_one_size_copy > 1024) {
+      sleep(1);
+      read_bytes = fread(data_buffer, 1, 1024, users_file);
+      printf("This is how many bytes were read from the file (should be 1024):%zu\n", read_bytes);
+      total_read_bytes += read_bytes;
+      written_bytes = send(server_one, data_buffer, read_bytes, 0);
+      total_written_bytes += written_bytes;
+      printf("This is how many bytes were written to the server_one (should be 1024): %zu\n", written_bytes);
+      portion_one_size_copy -= written_bytes;
+      printf("This is how many bytes have been read total: %zu\n", total_read_bytes);
+      printf("This is how many bytes have been written total: %zu\n", total_written_bytes);
+      printf("This is how many bytes we have left to read/write from the portion: %zu\n", portion_one_size_copy);
+    }
+    else {
+      sleep(1);
+      read_bytes = fread(data_buffer, 1, portion_one_size_copy, users_file);
+      printf("This is how many bytes were read from the users file: %zu\n", read_bytes);
+      total_read_bytes += read_bytes;
+      written_bytes = send(server_one, data_buffer, read_bytes, 0);
+      total_written_bytes += written_bytes;
+      printf("This is how many bytes were written to the server_one: %zu\n", written_bytes);
+      printf("This is how many bytes have been read total: %zu\n", total_read_bytes);
+      printf("This is how many bytes have been written total: %zu\n", total_written_bytes);
+    }
+
+  }
+  /*
   fread(portion_one_buffer, 1, portion_one_size, users_file);
   portion_one_buffer[portion_one_size] = '\0';
 
@@ -293,13 +265,13 @@ int handle_put (char *put_command, struct ClientFileContent *params) {
   char portion_four_buffer [portion_four_size];
   fread(portion_four_buffer, 1, portion_four_size, users_file);
   portion_four_buffer[portion_four_size] = '\0';
-
+*/
   /*------------------------
    * Socket Sending 
    *------------------------*/
-
-  /* These strings declared below will be used to store the string version of the portion sizes so that we can include them as part of the header string that we send to the DFS */
-  /* We convert the ssize_t type that the portion_size variables are made up of and convert them to strings using the snprintf command */
+/*
+  // These strings declared below will be used to store the string version of the portion sizes so that we can include them as part of the header string that we send to the DFS 
+  // We convert the ssize_t type that the portion_size variables are made up of and convert them to strings using the snprintf command 
   char portion_one_size_char[16], portion_two_size_char[16], portion_three_size_char[16], portion_four_size_char[16];
   snprintf(portion_one_size_char, sizeof(portion_one_size_char), "%zu", portion_one_size);
   snprintf(portion_two_size_char, sizeof(portion_two_size_char), "%zu", portion_two_size);
@@ -307,13 +279,13 @@ int handle_put (char *put_command, struct ClientFileContent *params) {
   snprintf(portion_four_size_char, sizeof(portion_four_size_char), "%zu", portion_four_size);
 
 
-  /* The declarations below are creating the arrays of chars that will ultimately hold the final messages with headers that we send to the server */
+  // The declarations below are creating the arrays of chars that will ultimately hold the final messages with headers that we send to the server 
   char portion_one_message[sizeof("PUT ") + sizeof(portion_one_filename) + 8 + sizeof(params->username) + sizeof(params->password) + portion_one_size];
   char portion_two_message[sizeof("PUT ") + sizeof(portion_two_filename) + 8 + sizeof(params->username) + sizeof(params->password) + portion_two_size];
   char portion_three_message[sizeof("PUT ") + sizeof(portion_three_filename) + 8 + sizeof(params->username) + sizeof(params->password) + portion_three_size];
   char portion_four_message[sizeof("PUT ") + sizeof(portion_four_filename) + 8 + sizeof(params->username) + sizeof(params->password) + portion_four_size];
 
-  /* The calls below are actually populating the arrays that we instantiated above by creating the headers, appending the body, and writing this to the passed in array of chars */
+  / The calls below are actually populating the arrays that we instantiated above by creating the headers, appending the body, and writing this to the passed in array of chars 
   construct_put_message((char *)&portion_one_filename, (char *)&portion_one_size_char, (char *)&portion_one_buffer, params, (char *)&portion_one_message);
   construct_put_message((char *)&portion_two_filename, (char *)&portion_two_size_char, (char *)&portion_two_buffer, params, (char *)&portion_two_message);
   construct_put_message((char *)&portion_three_filename, (char *)&portion_three_size_char, (char *)&portion_three_buffer, params, (char *)&portion_three_message);
@@ -329,10 +301,35 @@ int handle_put (char *put_command, struct ClientFileContent *params) {
   send_to_server((char *)&portion_three_message, 3, params);
   send_to_server((char *)&portion_four_message, 4, params);
 
-
+*/
   return 0;
 
 }
+
+int create_socket_to_server(int server_number, struct ClientFileContent *params) {
+
+  int sock;
+  sock = socket(AF_INET, SOCK_STREAM, 0);
+
+  if (sock == -1)
+    printf("Could not create socket\n");
+
+  struct sockaddr_in server;
+  int port_number;
+  port_number = atoi(params->ports[server_number-1]);
+
+  server.sin_addr.s_addr = INADDR_ANY;
+  server.sin_family = AF_INET;
+  server.sin_port = htons(port_number);
+
+  if (connect(sock, (struct sockaddr *)&server, sizeof(server)) < 0){
+    perror("connect failed. Error\n");
+    exit(1);
+  }
+  printf("connected\n");
+  return sock;
+}
+
 
 /*-----------------------------------------------------------------------------------------------------------------------------------------------------------
  * send_to_server - this function takes in a message body, a server number, and our client param struct and sends the message to the correct server
