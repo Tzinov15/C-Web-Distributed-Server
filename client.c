@@ -248,13 +248,13 @@ int handle_put (char *put_command, struct ClientFileContent *params, struct File
   send_file(server_location_array[0], server_location_array[1], 1, portion_one_size, users_file, params, portion_one_filename);
 
   // This will call the send_file command which will send portion two to the servers designated to receive portion two
-  send_file(server_location_array[2], server_location_array[3], 2, portion_two_size, users_file, params, portion_two_filename);
+  //send_file(server_location_array[2], server_location_array[3], 2, portion_two_size, users_file, params, portion_two_filename);
  
   // This will call the send_file command which will send portion three to the servers designated to receive portion three
-  send_file(server_location_array[4], server_location_array[5], 3, portion_three_size, users_file, params, portion_three_filename);
+  //send_file(server_location_array[4], server_location_array[5], 3, portion_three_size, users_file, params, portion_three_filename);
   
   // This will call the send_file command which will send portion four to the servers designated to receive portion four
-  send_file(server_location_array[6], server_location_array[7], 4, portion_four_size, users_file, params, portion_two_filename);
+  //send_file(server_location_array[6], server_location_array[7], 4, portion_four_size, users_file, params, portion_two_filename);
 
 
   /*------------------------
@@ -299,47 +299,72 @@ int handle_put (char *put_command, struct ClientFileContent *params, struct File
 
 
 
+
 void send_file (int first_server_number, int second_server_number, int portion_number, ssize_t portion_size, FILE *user_file, struct ClientFileContent *params, char *portion_file_name) {
 
 printf("||>> Hello from send_file\n");
   ssize_t read_bytes, written_bytes, total_read_bytes, total_written_bytes;
+  ssize_t written_bytes_server_two, total_written_bytes_server_two;
   int server_one, server_two;
   server_one = create_socket_to_server(first_server_number, params);
   server_two = create_socket_to_server(second_server_number, params);
 
   char data_buffer[1024];
+  char data_buffer_server_two[1024];
   ssize_t portion_size_copy;
   portion_size_copy = portion_size;
   total_read_bytes = 0;
   total_written_bytes = 0;
+  total_written_bytes_server_two = 0;
   while (total_read_bytes != portion_size) {
+    sleep(1);
     if (portion_size_copy > 1024) {
       printf("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
       read_bytes = fread(data_buffer, 1, 1024, user_file);
+      memcpy(&data_buffer_server_two, &data_buffer, sizeof(data_buffer_server_two));
       printf("This is how many bytes were read from the file (should be 1024):%zu\n", read_bytes);
       printf("This is what was read from the file:\n%s\n", data_buffer);
+      printf("And this is what was copied to the second buffer:\n%s\n", data_buffer_server_two);
       total_read_bytes += read_bytes;
       written_bytes = send(server_one, data_buffer, read_bytes, 0);
+      written_bytes_server_two = send(server_two, data_buffer_server_two, read_bytes, 0);
+      if (written_bytes == -1)
+        printf("Error with writing bytes to server %d\n", first_server_number);
+      if (written_bytes_server_two == -1)
+        printf("Error with writing bytes to server %d\n", second_server_number);
       total_written_bytes += written_bytes;
-      printf("This is how many bytes were written to the server_one (should be 1024): %zu\n", written_bytes);
+      total_written_bytes_server_two += written_bytes_server_two;
+      printf("This is how many bytes were written to server %d (should be 1024): %zu\n",first_server_number, written_bytes);
+      printf("This is how many bytes were written to server %d (should be 1024): %zu\n", second_server_number, written_bytes);
       portion_size_copy -= written_bytes;
       printf("This is how many bytes have been read total: %zu\n", total_read_bytes);
-      printf("This is how many bytes have been written total: %zu\n", total_written_bytes);
-      printf("This is how many bytes we have left to read/write from the portion: %zu\n", portion_size_copy);
+      printf("This is how many bytes have been written total to server %d: %zu\n", first_server_number, total_written_bytes);
+      printf("This is how many bytes have been written total to server %d: %zu\n", second_server_number, total_written_bytes);
       printf("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
       memset(&data_buffer, 0, sizeof(data_buffer));
     }
     else {
       printf("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
-      read_bytes = fread(data_buffer, 1, portion_size_copy, user_file);
-      printf("This is how many bytes were read from the users file: %zu\n", read_bytes);
+      read_bytes = fread(data_buffer, 1, portion_size, user_file);
+      memcpy(&data_buffer_server_two, &data_buffer, sizeof(data_buffer_server_two));
+      printf("This is how many bytes were read from the file %zu\n", read_bytes);
       printf("This is what was read from the file:\n%s\n", data_buffer);
+      printf("And this is what was copied to the second buffer:\n%s\n", data_buffer_server_two);
       total_read_bytes += read_bytes;
       written_bytes = send(server_one, data_buffer, read_bytes, 0);
+      written_bytes_server_two = send(server_two, data_buffer_server_two, read_bytes, 0);
+      if (written_bytes == -1)
+        printf("Error with writing bytes to server %d\n", first_server_number);
+      if (written_bytes_server_two == -1)
+        printf("Error with writing bytes to server %d\n", second_server_number);
       total_written_bytes += written_bytes;
-      printf("This is how many bytes were written to the server_one: %zu\n", written_bytes);
+      total_written_bytes_server_two += written_bytes_server_two;
+      printf("This is how many bytes were written to server %d : %zu\n",first_server_number, written_bytes);
+      printf("This is how many bytes were written to server %d : %zu\n", second_server_number, written_bytes);
       printf("This is how many bytes have been read total: %zu\n", total_read_bytes);
-      printf("This is how many bytes have been written total: %zu\n", total_written_bytes);
+      printf("This is how many bytes have been written total to server %d: %zu\n", first_server_number, total_written_bytes);
+      printf("This is how many bytes have been written total to server %d: %zu\n", second_server_number, total_written_bytes);
+      printf("This is how many bytes we have left to read/write from the portion: %zu\n", portion_size_copy);
       printf("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
       memset(&data_buffer, 0, sizeof(data_buffer));
     }
@@ -357,7 +382,7 @@ int create_socket_to_server(int server_number, struct ClientFileContent *params)
 
   struct sockaddr_in server;
   int port_number;
-  printf("Creating socket to server #%d which has port_number %s\n", server_number, params->ports[server_number-1]);
+  printf("    Creating socket to server #%d which has port_number %s\n", server_number, params->ports[server_number-1]);
   port_number = atoi(params->ports[server_number-1]);
 
   server.sin_addr.s_addr = INADDR_ANY;
@@ -365,7 +390,7 @@ int create_socket_to_server(int server_number, struct ClientFileContent *params)
   server.sin_port = htons(port_number);
 
   if (connect(sock, (struct sockaddr *)&server, sizeof(server)) < 0){
-    perror("connect failed. Error\n");
+    perror("    connect failed. Error\n");
   }
   else
     printf("    connected\n");
