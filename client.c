@@ -31,7 +31,7 @@ int main(int argc, char ** argv) {
         handle_list();
       }
       if (strncmp(user_input, "PUT", strlen("PUT")) == 0) {
-        handle_put(user_input, &client_params);
+        handle_put(user_input, &client_params, &destination_matrix);
       }
 
       if (strncmp(user_input, "GET", strlen("GET")) == 0) {
@@ -83,7 +83,7 @@ int handle_get (char *get_command) {
  *------------------------------------------------------------------------------------------------------- */
 int calculate_hash_modulo_value(char * file_name)
 {
-printf("Hello from calculate_hash_modulo_value\n");
+  printf("||>> Hello from calculate_hash_modulo_value\n");
 
   FILE *users_file;
   users_file = fopen(file_name, "r");
@@ -100,18 +100,18 @@ printf("Hello from calculate_hash_modulo_value\n");
     MD5_Update (&mdContext, data, bytes);
   }
   MD5_Final (c, &mdContext);
-  printf("This is the complete hash value of our file in hex: ");
+  printf("    This is the complete hash value of our file in hex: ");
   for (i = 0; i < MD5_DIGEST_LENGTH; i+=1)  {
     printf("%02x", c[i]);
   }
   printf("\n");
 
-  printf("This is the last byte of the hash value in hex: %02x\n", c[15]);
+  printf("    This is the last byte of the hash value in hex: %02x\n", c[15]);
   snprintf(hex_byte, 4, "%d", c[15]);
   last_hex_byte = atoi(hex_byte);
-  printf("This is the decimal value of the last byte of the hash: %d\n", last_hex_byte);
+  printf("    This is the decimal value of the last byte of the hash: %d\n", last_hex_byte);
   hash_modulo_4 = last_hex_byte % 4;
-  printf("This is the modulus 4 value of the hash %d\n", hash_modulo_4);
+  printf("    This is the modulus 4 value of the hash %d\n", hash_modulo_4);
   fclose(users_file);
   return hash_modulo_4;
 
@@ -120,8 +120,9 @@ printf("Hello from calculate_hash_modulo_value\n");
 /*-------------------------------------------------------------------------------------------------------
  * handle_put - this function will be responsible for uploading all the files available on the DFS servers
  *------------------------------------------------------------------------------------------------------- */
-int handle_put (char *put_command, struct ClientFileContent *params) {
+int handle_put (char *put_command, struct ClientFileContent *params, struct FileDistributionCombination *matrix){
 
+  printf("||>> Hi from handle_put\n");
   // Structs needed to be able to call the stat function for file information
   struct stat buffer;
   /* file_name used in strtok_r to capture content after space, read_line is buffer that fgets writes to, extra_args is for any additional parameters that the user wrongly supplied */
@@ -161,7 +162,6 @@ int handle_put (char *put_command, struct ClientFileContent *params) {
    * File Consruction Operations
    *------------------------*/
 
-  calculate_hash_modulo_value(file_name);
 
 
   char generic_filename [] = "%s.%d";
@@ -194,7 +194,7 @@ int handle_put (char *put_command, struct ClientFileContent *params) {
   /* Get size of file that user specified */
   file_size = buffer.st_size; 
   file_size_copy = file_size;
-  printf("The size of the original file is %zd\n", file_size); 
+  printf("    The size of the original file is %zd\n", file_size); 
 
   /* Set the file sizes of each portion based on the original size of the complete file */
   portion_one_size = file_size / 4;
@@ -208,68 +208,59 @@ int handle_put (char *put_command, struct ClientFileContent *params) {
 
   portion_four_size = file_size_copy;
 
-  int server_one;
 
-  server_one = create_socket_to_server(1, params);
-  ssize_t read_bytes;
-  ssize_t written_bytes;
-  ssize_t total_read_bytes;
-  ssize_t total_written_bytes;
-  char data_buffer[1024];
+  // Array that will store all the mappings of portion number -> server number based on the modulo value of the hash
+  int server_location_array[8];
+  int hash_value = calculate_hash_modulo_value(file_name);
 
-  /* The following code will create a seperate data_buffer for each portion of the file, read in the correct number of bytes for that portion from the users file, then add the string-terminating character '\0' */
-  /* This is the code that breaks up the users file into four seperate chunks */
-  ssize_t portion_one_size_copy;
-  portion_one_size_copy = portion_one_size;
-  total_read_bytes = 0;
-  total_written_bytes = 0;
-  while (total_read_bytes != portion_one_size) {
-    if (portion_one_size_copy > 1024) {
-      sleep(1);
-      read_bytes = fread(data_buffer, 1, 1024, users_file);
-      printf("This is how many bytes were read from the file (should be 1024):%zu\n", read_bytes);
-      total_read_bytes += read_bytes;
-      written_bytes = send(server_one, data_buffer, read_bytes, 0);
-      total_written_bytes += written_bytes;
-      printf("This is how many bytes were written to the server_one (should be 1024): %zu\n", written_bytes);
-      portion_one_size_copy -= written_bytes;
-      printf("This is how many bytes have been read total: %zu\n", total_read_bytes);
-      printf("This is how many bytes have been written total: %zu\n", total_written_bytes);
-      printf("This is how many bytes we have left to read/write from the portion: %zu\n", portion_one_size_copy);
-    }
-    else {
-      sleep(1);
-      read_bytes = fread(data_buffer, 1, portion_one_size_copy, users_file);
-      printf("This is how many bytes were read from the users file: %zu\n", read_bytes);
-      total_read_bytes += read_bytes;
-      written_bytes = send(server_one, data_buffer, read_bytes, 0);
-      total_written_bytes += written_bytes;
-      printf("This is how many bytes were written to the server_one: %zu\n", written_bytes);
-      printf("This is how many bytes have been read total: %zu\n", total_read_bytes);
-      printf("This is how many bytes have been written total: %zu\n", total_written_bytes);
-    }
-
+  switch (hash_value)
+  {
+    case 0 :
+      memcpy(&server_location_array, matrix->hash_combo_zero_servers, sizeof(server_location_array));
+        break;
+    case 1 :
+      memcpy(&server_location_array, matrix->hash_combo_one_servers, sizeof(server_location_array));
+        break;
+    case 2 :
+      memcpy(&server_location_array, matrix->hash_combo_two_servers, sizeof(server_location_array));
+        break;
+    case 3 :
+      memcpy(&server_location_array, matrix->hash_combo_three_servers, sizeof(server_location_array));
+        break;
+    default :
+      printf("Invalid hash value, there must be an issue in the hash calc function\n" );
   }
-  /*
-  fread(portion_one_buffer, 1, portion_one_size, users_file);
-  portion_one_buffer[portion_one_size] = '\0';
 
-  char portion_two_buffer [portion_two_size];
-  fread(portion_two_buffer, 1, portion_two_size, users_file);
-  portion_two_buffer[portion_two_size] = '\0';
+  printf("||>> Back to handle_put\n");
+  printf("    These are the values of the server_location\n");
+  printf("      File Portion 1 going to server # %d\n", server_location_array[0]);
+  printf("      File Portion 1 going to server # %d\n", server_location_array[1]);
 
-  char portion_three_buffer [portion_three_size];
-  fread(portion_three_buffer, 1, portion_three_size, users_file);
-  portion_three_buffer[portion_three_size] = '\0';
+  printf("      File Portion 2 going to server # %d\n", server_location_array[2]);
+  printf("      File Portion 2 going to server # %d\n", server_location_array[3]);
 
-  char portion_four_buffer [portion_four_size];
-  fread(portion_four_buffer, 1, portion_four_size, users_file);
-  portion_four_buffer[portion_four_size] = '\0';
-*/
+  printf("      File Portion 3 going to server # %d\n", server_location_array[4]);
+  printf("      File Portion 3 going to server # %d\n", server_location_array[5]);
+
+  printf("      File Portion 4 going to server # %d\n", server_location_array[6]);
+  printf("      File Portion 4 going to server # %d\n", server_location_array[7]);
+  // This will call the send_file command which will send portion one to the servers designated to receive portion 1
+  send_file(server_location_array[0], server_location_array[1], 1, portion_one_size, users_file, params, portion_one_filename);
+
+  // This will call the send_file command which will send portion two to the servers designated to receive portion two
+  send_file(server_location_array[2], server_location_array[3], 2, portion_two_size, users_file, params, portion_two_filename);
+ 
+  // This will call the send_file command which will send portion three to the servers designated to receive portion three
+  send_file(server_location_array[4], server_location_array[5], 3, portion_three_size, users_file, params, portion_three_filename);
+  
+  // This will call the send_file command which will send portion four to the servers designated to receive portion four
+  send_file(server_location_array[6], server_location_array[7], 4, portion_four_size, users_file, params, portion_two_filename);
+
+
   /*------------------------
    * Socket Sending 
    *------------------------*/
-/*
+  /*
   // These strings declared below will be used to store the string version of the portion sizes so that we can include them as part of the header string that we send to the DFS 
   // We convert the ssize_t type that the portion_size variables are made up of and convert them to strings using the snprintf command 
   char portion_one_size_char[16], portion_two_size_char[16], portion_three_size_char[16], portion_four_size_char[16];
@@ -306,8 +297,58 @@ int handle_put (char *put_command, struct ClientFileContent *params) {
 
 }
 
-int create_socket_to_server(int server_number, struct ClientFileContent *params) {
 
+
+void send_file (int first_server_number, int second_server_number, int portion_number, ssize_t portion_size, FILE *user_file, struct ClientFileContent *params, char *portion_file_name) {
+
+printf("||>> Hello from send_file\n");
+  ssize_t read_bytes, written_bytes, total_read_bytes, total_written_bytes;
+  int server_one, server_two;
+  server_one = create_socket_to_server(first_server_number, params);
+  server_two = create_socket_to_server(second_server_number, params);
+
+  char data_buffer[1024];
+  ssize_t portion_size_copy;
+  portion_size_copy = portion_size;
+  total_read_bytes = 0;
+  total_written_bytes = 0;
+  while (total_read_bytes != portion_size) {
+    if (portion_size_copy > 1024) {
+      printf("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
+      read_bytes = fread(data_buffer, 1, 1024, user_file);
+      printf("This is how many bytes were read from the file (should be 1024):%zu\n", read_bytes);
+      printf("This is what was read from the file:\n%s\n", data_buffer);
+      total_read_bytes += read_bytes;
+      written_bytes = send(server_one, data_buffer, read_bytes, 0);
+      total_written_bytes += written_bytes;
+      printf("This is how many bytes were written to the server_one (should be 1024): %zu\n", written_bytes);
+      portion_size_copy -= written_bytes;
+      printf("This is how many bytes have been read total: %zu\n", total_read_bytes);
+      printf("This is how many bytes have been written total: %zu\n", total_written_bytes);
+      printf("This is how many bytes we have left to read/write from the portion: %zu\n", portion_size_copy);
+      printf("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
+      memset(&data_buffer, 0, sizeof(data_buffer));
+    }
+    else {
+      printf("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
+      read_bytes = fread(data_buffer, 1, portion_size_copy, user_file);
+      printf("This is how many bytes were read from the users file: %zu\n", read_bytes);
+      printf("This is what was read from the file:\n%s\n", data_buffer);
+      total_read_bytes += read_bytes;
+      written_bytes = send(server_one, data_buffer, read_bytes, 0);
+      total_written_bytes += written_bytes;
+      printf("This is how many bytes were written to the server_one: %zu\n", written_bytes);
+      printf("This is how many bytes have been read total: %zu\n", total_read_bytes);
+      printf("This is how many bytes have been written total: %zu\n", total_written_bytes);
+      printf("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
+      memset(&data_buffer, 0, sizeof(data_buffer));
+    }
+
+  }
+
+}
+int create_socket_to_server(int server_number, struct ClientFileContent *params) {
+  printf("||>> Hello from create_socket_to_server\n");
   int sock;
   sock = socket(AF_INET, SOCK_STREAM, 0);
 
@@ -316,6 +357,7 @@ int create_socket_to_server(int server_number, struct ClientFileContent *params)
 
   struct sockaddr_in server;
   int port_number;
+  printf("Creating socket to server #%d which has port_number %s\n", server_number, params->ports[server_number-1]);
   port_number = atoi(params->ports[server_number-1]);
 
   server.sin_addr.s_addr = INADDR_ANY;
@@ -324,9 +366,9 @@ int create_socket_to_server(int server_number, struct ClientFileContent *params)
 
   if (connect(sock, (struct sockaddr *)&server, sizeof(server)) < 0){
     perror("connect failed. Error\n");
-    exit(1);
   }
-  printf("connected\n");
+  else
+    printf("    connected\n");
   return sock;
 }
 
