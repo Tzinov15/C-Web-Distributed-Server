@@ -54,12 +54,30 @@ int main(int argc, char ** argv)
     }
   }
 }
-/*-------------------------------------------------------------------------------------------------------------------------------------------
- * deleteSubstring - this function is a helper function that is used when extracting the path that the client sends a GET request on
- *------------------------------------------------------------------------------------------------------------------------------------------- */
-void deleteSubstring(char *original_string,const char *sub_string) {
-  while( (original_string=strstr(original_string,sub_string)) )
-    memmove(original_string,original_string+strlen(sub_string),1+strlen(original_string+strlen(sub_string)));
+/*---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ * validate_user - this function will take the username and passed into it, validate that the two match with the dfs.conf record, and return a 0 or a 1 based on the result
+ *--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- */
+int validate_user(char *username, char *password) {
+  printf("||>> Hello from validate_user\n");
+  printf("    This is the username that was passed to me%s\n", username);
+  printf("    This is the password that was passed to me%s\n", password);
+}
+
+/*---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ * parse_request - this function will be responsible for taking in the request from the client, parsing out the elements of the body and header, then populating the respective stirngs that were passed in
+ *--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- */
+void parse_request(char *file_content, char *body, char *username, char *password, char *file_name) {
+  printf("||>> Hello from parse_request\n");
+  printf("    This is the full file_content that was passed to me%s\n", file_content);
+}
+
+/*---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ * create_file_from_portion - this function will take in the name of the file, and its body, and create a new file under the correct folder for the respective server number and user
+ *--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- */
+void create_file_from_portion(char *file_name, char *body) {
+  printf("||>> Hello from create_file_from_portion\n");
+  printf("    This is the file_name that was passed to me%s\n", file_name);
+  printf("    This is the body that was passed to me%s\n", body);
 }
 /*----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  * client_handler - this is the function that gets first called by the child (client) process. It receives the initial request and proceeds onward with error handling, parsing, and file serving
@@ -71,9 +89,14 @@ void client_handler(int client) {
 
   while( (read_size = recv(client, client_message, 1024, 0)) > 0)
   {
-    printf("This is how many bytes I (the server) just received from the client %zu\n", read_size);
     printf("%s\n", client_message);
+    /*parse_request(client_message, body, username, password, file_name);
+    if (validate_user(username, password))
+      printf("Username and password do not match!!\n");
+    else
+      create_file_from_portion (file_name, body);
     sleep(1);
+    */
     memset(&client_message, 0, sizeof(client_message));
   }
 }
@@ -151,4 +174,11 @@ int setup_socket(int port_number, int max_clients)
     exit(-1);
   }
   return sock;
+}
+/*-------------------------------------------------------------------------------------------------------------------------------------------
+ * deleteSubstring - this function is a helper function that is used when extracting the path that the client sends a GET request on
+ *------------------------------------------------------------------------------------------------------------------------------------------- */
+void deleteSubstring(char *original_string,const char *sub_string) {
+  while( (original_string=strstr(original_string,sub_string)) )
+    memmove(original_string,original_string+strlen(sub_string),1+strlen(original_string+strlen(sub_string)));
 }

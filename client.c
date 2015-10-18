@@ -242,20 +242,18 @@ int handle_put (char *put_command, struct ClientFileContent *params, struct File
   send_file(server_location_array[2], server_location_array[3], 2, portion_two_size, users_file, params, portion_two_filename);
  
   // This will call the send_file command which will send portion three to the servers designated to receive portion three
-  send_file(server_location_array[4], server_location_array[5], 3, portion_three_size, users_file, params, portion_three_filename);
+  //send_file(server_location_array[4], server_location_array[5], 3, portion_three_size, users_file, params, portion_three_filename);
   
   // This will call the send_file command which will send portion four to the servers designated to receive portion four
-  send_file(server_location_array[6], server_location_array[7], 4, portion_four_size, users_file, params, portion_two_filename);
+  //send_file(server_location_array[6], server_location_array[7], 4, portion_four_size, users_file, params, portion_two_filename);
 
 
   /*------------------------
    * Socket Sending 
    *------------------------*/
-  /*
   // These strings declared below will be used to store the string version of the portion sizes so that we can include them as part of the header string that we send to the DFS 
   // We convert the ssize_t type that the portion_size variables are made up of and convert them to strings using the snprintf command 
-  char portion_one_size_char[16], portion_two_size_char[16], portion_three_size_char[16], portion_four_size_char[16];
-  snprintf(portion_one_size_char, sizeof(portion_one_size_char), "%zu", portion_one_size);
+  /*
   snprintf(portion_two_size_char, sizeof(portion_two_size_char), "%zu", portion_two_size);
   snprintf(portion_three_size_char, sizeof(portion_three_size_char), "%zu", portion_three_size);
   snprintf(portion_four_size_char, sizeof(portion_four_size_char), "%zu", portion_four_size);
@@ -300,18 +298,22 @@ printf("||>> Hello from send_file\n");
   server_one = create_socket_to_server(first_server_number, params);
   server_two = create_socket_to_server(second_server_number, params);
 
-  char data_buffer[1024];
-  char data_buffer_server_two[1024];
+  char portion_size_char[16];
+  snprintf(portion_size_char, sizeof(portion_size_char), "%zu", portion_size);
+  char message_header[256];
+  construct_put_header(portion_file_name, portion_size_char, params, message_header);
+printf("This is the populated header file for the current put request message %s\n", message_header);
+  char data_buffer[1024], data_buffer_server_two[1024];
   ssize_t portion_size_copy;
   portion_size_copy = portion_size;
   total_read_bytes = 0;
   total_written_bytes = 0;
   total_written_bytes_server_two = 0;
+  printf("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
   printf("This is the portion size of the file that we are about to read %zu\n", portion_size);
   while (total_read_bytes != portion_size) {
     sleep(1);
     if (portion_size_copy > 1024) {
-      printf("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
       read_bytes = fread(data_buffer, 1, 1024, user_file);
       memcpy(&data_buffer_server_two, &data_buffer, sizeof(data_buffer_server_two));
       printf("This is how many bytes were read from the file (should be 1024):%zu\n", read_bytes);
@@ -333,11 +335,9 @@ printf("||>> Hello from send_file\n");
       printf("This is how many bytes have been written total to server %d: %zu\n", first_server_number, total_written_bytes);
       printf("This is how many bytes have been written total to server %d: %zu\n", second_server_number, total_written_bytes_server_two);
       printf("This is how many bytes we have left to read/write from the portion: %zu\n", portion_size_copy);
-      printf("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
       memset(&data_buffer, 0, sizeof(data_buffer));
     }
     else {
-      printf("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
       memset(&data_buffer, 0, sizeof(data_buffer));
       memset(&data_buffer_server_two, 0, sizeof(data_buffer));
       read_bytes = fread(data_buffer, 1, portion_size, user_file);
@@ -393,57 +393,19 @@ int create_socket_to_server(int server_number, struct ClientFileContent *params)
 
 
 /*-----------------------------------------------------------------------------------------------------------------------------------------------------------
- * send_to_server - this function takes in a message body, a server number, and our client param struct and sends the message to the correct server
- *---------------------------------------------------------------------------------------------------------------------------------------------------------- */
-void send_to_server(char *message, int server_number, struct ClientFileContent *params) {
-  printf("Server #%s Address: %s\n", params->servers[server_number-1], params->addresses[server_number-1]);
-  printf("Server #%s Port: %s\n", params->servers[server_number-1], params->ports[server_number-1]);
-  printf("Message contents \n%s\n", message);
-  printf("Message size %zu\n", strlen(message));
-
-  int sock;
-
-  sock = socket(AF_INET, SOCK_STREAM, 0);
-
-  if (sock == -1)
-    printf("Could not create socket\n");
-
-  struct sockaddr_in server;
-  int port_number;
-  port_number = atoi(params->ports[server_number-1]);
-
-  server.sin_addr.s_addr = INADDR_ANY;
-  server.sin_family = AF_INET;
-  server.sin_port = htons(port_number);
-
-  if (connect(sock, (struct sockaddr *)&server, sizeof(server)) < 0){
-    perror("connect failed. Error\n");
-    exit(1);
-  }
-  printf("connected\n");
-
-  ssize_t total_read_bytes;
-  total_read_bytes = 0;
-  while (total_read_bytes != strlen(message)) {
-    total_read_bytes = send(sock, message, strlen(message), 0);
-    printf("I just read %zu bytes\n", total_read_bytes);
-  }
-}
-
-/*-----------------------------------------------------------------------------------------------------------------------------------------------------------
  * construct_put_message - this function is responsible for assembling the full message that we send to the server which includes header fields and the body 
  *---------------------------------------------------------------------------------------------------------------------------------------------------------- */
-void construct_put_message(char *filename, char *filesize, char *filecontent, struct ClientFileContent *params, char *final_message) {
-  strcpy(final_message, "PUT ");
-  strcat(final_message, filename);
-  strcat(final_message, " ");
-  strcat(final_message, filesize);
-  strcat(final_message, "\n");
-  strcat(final_message, params->username);
-  strcat(final_message, "\n");
-  strcat(final_message, params->password);
-  strcat(final_message, "\n");
-  strcat(final_message, filecontent);
+void construct_put_header(char *filename, char *filesize, struct ClientFileContent *params, char *header) 
+{
+  strcpy(header, "PUT ");
+  strcat(header, filename);
+  strcat(header, " ");
+  strcat(header, filesize);
+  strcat(header, "\n");
+  strcat(header, params->username);
+  strcat(header, "\n");
+  strcat(header, params->password);
+  strcat(header, "\n");
 }
 
 /*-------------------------------------------------------------------------------------------------------
