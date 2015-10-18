@@ -23,14 +23,35 @@ int main(int argc, char ** argv)
 
   /* Create main socket, bind, have it listen */
   main_socket = setup_socket(port_number, MAX_CLIENTS);
-  int client_socket, read_size, c;
-  char client_message[2000];
-  memset(&client_message, 0, sizeof(client_message));
-  client_socket = accept(main_socket, (struct sockaddr *)&client, (socklen_t*)&c);
+  int client_socket, c;
+  while (1) {
 
-  while( (read_size = recv(client_socket, client_message, 2000, 0)) > 0)
-  {
-    printf("%s\n", client_message);
+    if ( (client_socket = accept(main_socket, (struct sockaddr *)&client, (socklen_t*)&c)) < 0) {
+      perror("ERROR on accept");
+      exit(1);
+    }
+
+    pid = fork();
+    if (pid < 0){
+      perror("ERROR on fork");
+      exit(1);
+    }
+
+    /* The child process will handle individual clients, therefore we can 
+     * close the master socket for the childs (clients) address space */
+    if (pid == 0) {
+      close(main_socket);
+      client_handler(client_socket);
+      //close(cli);
+      exit(0);
+    }
+
+    /* The parent will simply sit in this while look acceptting new clients,
+     * it has no need to maintain active sockets with all clients */
+    if (pid > 0) {
+      close(client_socket);
+      waitpid(0, NULL, WNOHANG);
+    }
   }
 }
 /*-------------------------------------------------------------------------------------------------------------------------------------------
@@ -43,7 +64,18 @@ void deleteSubstring(char *original_string,const char *sub_string) {
 /*----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  * client_handler - this is the function that gets first called by the child (client) process. It receives the initial request and proceeds onward with error handling, parsing, and file serving
  *----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
-void client_handler(int client, struct TextfileData *config_data) {
+void client_handler(int client) {
+  ssize_t read_size;
+  char client_message[1024];
+  memset(&client_message, 0, sizeof(client_message));
+
+  while( (read_size = recv(client, client_message, 1024, 0)) > 0)
+  {
+    printf("This is how many bytes I (the server) just received from the client %zu\n", read_size);
+    printf("%s\n", client_message);
+    sleep(1);
+    memset(&client_message, 0, sizeof(client_message));
+  }
 }
 /*--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  * send_response - this function will be the function that actually sends a message to the client. This message will contain the proper headers and the respective body content

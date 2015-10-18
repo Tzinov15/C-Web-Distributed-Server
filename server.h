@@ -51,7 +51,7 @@ struct TextfileData {
 /* Function Declarations */
 void send_response(int client, int status_code, struct HTTP_RequestParams *params, char *full_path);
 int handle_file_serving(char *path, char *body, struct TextfileData *config_data, int *result_status);
-void client_handler(int client, struct TextfileData *config_data);
+void client_handler(int client);
 int validate_request_headers(struct HTTP_RequestParams *params, int *decision);
 void extract_request_parameters(char *response, struct HTTP_RequestParams *params);
 void removeSubstring(char *s,const char *toremove);
