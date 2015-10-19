@@ -1,0 +1,41 @@
+CLIENT
+
+
+** Have begininning of handle_put function establish what file portions are going where
+** Redesign implementation of sending data to servers to be able to handle large files (moving window buffer)
+    --> At the beginnign, open all four socket conenctions to have them ready to go
+    --> for each portion, create filename (header data) 
+    --> for each portion, get size of portion
+    --> first write the header for the portion to the client (containg filename, user/pass, etc)
+    --> Then begin writing the body:
+    --> inside of fread loop, read only into buffer 1024 bytes, send these to client, then read next 1024 bytes, etc
+    --> while condition will become while total_read_bytes is less than size of portion
+    total_read_bytes = 0;
+    while (!feof(requested_file)) {
+      read_bytes = fread(buffer, 1, 1024, requested_file);
+      total_read_bytes += read_bytes;
+      send(client, buffer, read_bytes, 0);
+    }
+
+   *** Have a header construction, data reading/buffering/sending section for each portion of the file
+   In the data sending line (where we send the buffered data to the server), we will send this data to BOTH servers that accept it (based on the hash modulo value)
+   Must find a dynamic way to specifiy which client socket connection to send the data to (as this will change depending on the file)
+
+
+SERVER
+
+
+  PUT 
+  ** read in data from client connections
+  ** parse the header from the client connections
+  ** look at the username name and password, validate request
+  ** look at the username in the header and check to see if that direcory exists under the servers respective directory
+    --> if it doesn't, create the directory
+    --> if it does, make sure we create the users file in the right direcoty
+
+  ** look at the filename specified in the header
+    --> create this file under the respective directory AND APPEND THE NUMBER INDICATING THE SERVER NUMBER
+  ** write the contents of the incoming data into a sliding buffer of 1024 bytes, write the buffer to the file, read in the next 1024 btyes, etc
+  GET 
+  ** look at the filename from the header
+  ** need to assemble the file together
