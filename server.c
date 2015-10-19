@@ -39,7 +39,7 @@ int main(int argc, char ** argv)
      * close the master socket for the childs (clients) address space */
     if (pid == 0) {
       close(main_socket);
-      client_handler(client_socket);
+      client_handler(client_socket, port_number);
       //close(cli);
       exit(0);
     }
@@ -66,25 +66,20 @@ int validate_user(char *username, char *password) {
  *--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- */
 int parse_message_header(char *file_content, char *username, char *password, char *file_name, unsigned long *header_size, unsigned long *body_size) {
   printf("||>> Hello from parse_request\n");
-  printf("    This is the full file_content that was passed to me: \n%s\n", file_content);
   char header_start_string[8];
   char *ptr;
   strncpy(header_start_string, file_content, 7);
   header_start_string[7] = '\0';
-  printf("  This is the start string for the file header: %s\n", header_start_string);
   if ( (strncmp(header_start_string, "&**&STX", 7)) == 0) {
     char *token;
     char *second_token;
-    printf("  We have a header request!!\n");
-    printf("  This is the header: \n%s\n", file_content);
-    printf("  And this is its length: %zu\n", strlen(file_content));
+    printf("  Header Request!! \n%s\n", file_content);
     *header_size = strlen(file_content);
     token = strtok(file_content, "\n");
-    printf("  This should be the first line of our header: %s\n", token);
     second_token = strtok(token, " ");
     second_token = strtok(NULL, " ");
+    strcpy(file_name, second_token);
     second_token = strtok(NULL, " ");
-    printf("  This should be the size of the body!!! %s\n", second_token);
     *body_size = strtoul(second_token, &ptr, 10);
     return 0;
 
@@ -98,15 +93,32 @@ int parse_message_header(char *file_content, char *username, char *password, cha
 /*---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  * create_file_from_portion - this function will take in the name of the file, and its body, and create a new file under the correct folder for the respective server number and user
  *--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- */
-void create_file_from_portion(char *file_name, char *body) {
+void create_file_from_portion(char *file_name, char *body, int port_number) {
   printf("||>> Hello from create_file_from_portion\n");
-  printf("    This is the file_name that was passed to me%s\n", file_name);
-  printf("    This is the body that was passed to me%s\n", body);
+  printf("    This is the file_name that was passed to me: %s\n", file_name);
+  printf("    This is the body that was passed to me: \n%s\n", body);
+  char new_file_name[strlen(file_name) + 3];
+  char directory_name[5];
+  char server_number_char[2];
+  int server_number;
+  // Set up the filename by adding server number, a dot, and the original filename passed in
+  server_number = port_number - 10000;
+  sprintf(server_number_char, "%d", server_number);
+  strncpy(new_file_name, server_number_char, 2);
+  strncat(new_file_name, ".", 1);
+  strncat(new_file_name, file_name, strlen(file_name));
+  printf("This is our shiny new file_name: \n%s\n", new_file_name);
+
+  strncpy(directory_name, "DFS", 3);
+  strncat(directory_name, server_number_char, 2);
+  printf("This is our shiny new directory name: \n%s\n", directory_name);
+  DIR* dir = 
+
 }
 /*----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  * client_handler - this is the function that gets first called by the child (client) process. It receives the initial request and proceeds onward with error handling, parsing, and file serving
  *----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
-void client_handler(int client) {
+void client_handler(int client, int port_number) {
   ssize_t read_size;
   ssize_t total_bytes_read;
   total_bytes_read = 0;
@@ -122,19 +134,23 @@ void client_handler(int client) {
 
   while (total_bytes_read != total_size)
   {
+    printf("======================\n");
+    printf("======================\n");
     sleep(1);
     read_size = recv(client, client_message, 1024, 0);
     total_bytes_read += read_size;
+    printf("Just read this many bytes: %zu\n", read_size);
+    printf("Total read bytes: %zu\n", total_bytes_read);
     // if our message received on the socket is just the header...no need to write anyting to a file 
     if ((parse_message_header(client_message, username,  password, file_name, &header_size, &body_size)) == 0) {
       printf("Just a header, no need to write to any file\n");
     }
-    // the message received on the socket contains no header
-    else
-    printf("Just read this many bytes: %zu\n", read_size);
-    printf("Total read bytes: %zu\n", total_bytes_read);
+    // the message received on the socket contains no header, which means it is body of the file
+    else {
+      printf("We have a file body to deal with...\n");
+      create_file_from_portion(file_name, client_message, port_number);
+    }
     total_size = header_size + body_size;
-    printf("And this is the total of the body and the header %lu\n", total_size);
 
     /*
     printf("This is the username from the header: %s\n", username);
