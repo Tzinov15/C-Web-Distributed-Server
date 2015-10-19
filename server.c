@@ -72,15 +72,23 @@ int parse_message_header(char *file_content, char *username, char *password, cha
   header_start_string[7] = '\0';
   if ( (strncmp(header_start_string, "&**&STX", 7)) == 0) {
     char *token;
+    char *new_token;
+    char *header_left_over;
     char *second_token;
     printf("  Header Request!! \n%s\n", file_content);
     *header_size = strlen(file_content);
-    token = strtok(file_content, "\n");
+    token = strtok_r(file_content, "\n", &header_left_over);
     second_token = strtok(token, " ");
     second_token = strtok(NULL, " ");
     strcpy(file_name, second_token);
     second_token = strtok(NULL, " ");
     *body_size = strtoul(second_token, &ptr, 10);
+    new_token = strtok(header_left_over, "\n");
+    strcpy(username, new_token);
+    printf("I have no idea what this line will be: %s\n", new_token);
+    new_token = strtok(NULL, "\n");
+    strcpy(password, new_token);
+    printf("or this one : %s\n", new_token);
     return 0;
 
   }
@@ -93,7 +101,7 @@ int parse_message_header(char *file_content, char *username, char *password, cha
 /*---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  * create_file_from_portion - this function will take in the name of the file, and its body, and create a new file under the correct folder for the respective server number and user
  *--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- */
-void create_file_from_portion(char *file_name, char *body, int port_number) {
+void create_file_from_portion(char *file_name, char *body, int port_number, char *user_name) {
   printf("||>> Hello from create_file_from_portion\n");
   printf("    This is the file_name that was passed to me: %s\n", file_name);
   printf("    This is the body that was passed to me: \n%s\n", body);
@@ -112,7 +120,20 @@ void create_file_from_portion(char *file_name, char *body, int port_number) {
   strncpy(directory_name, "DFS", 3);
   strncat(directory_name, server_number_char, 2);
   printf("This is our shiny new directory name: \n%s\n", directory_name);
-  DIR* dir = 
+
+  char cwd[1024];
+  char full_dir_path[1024+strlen(directory_name) + strlen(user_name) + 3];
+  if (getcwd(cwd, sizeof(cwd)) != NULL)
+    printf("Current working directory: %s\n", cwd);
+  else
+    printf("Error with getcwd()\n");
+  strncpy(full_dir_path, cwd, strlen(cwd));
+  strncat(full_dir_path, "/", 1);
+  strncat(full_dir_path, directory_name, strlen(directory_name));
+  strncat(full_dir_path, "/", 1);
+  strncat(full_dir_path, user_name, strlen(user_name));
+  printf("This is our full directory path: %s\n", full_dir_path);
+
 
 }
 /*----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -148,7 +169,7 @@ void client_handler(int client, int port_number) {
     // the message received on the socket contains no header, which means it is body of the file
     else {
       printf("We have a file body to deal with...\n");
-      create_file_from_portion(file_name, client_message, port_number);
+      create_file_from_portion(file_name, client_message, port_number, username);
     }
     total_size = header_size + body_size;
 

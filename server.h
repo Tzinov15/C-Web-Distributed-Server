@@ -53,6 +53,6 @@ void deleteSubstring(char *original_string,const char *sub_string);
 int setup_socket (int port_number, int max_clients);
 int validate_user(char *username, char *password);
 void client_handler(int client, int port_number);
-void create_file_from_portion(char *file_name, char *body, int port_number);
+void create_file_from_portion(char *file_name, char *body, int port_number, char *user_name);
 int parse_message_header(char *file_content, char *username, char *password, char *file_name, unsigned long *header_size, unsigned long *body_size);
 
