@@ -12,12 +12,10 @@ int main(int argc, char ** argv)
     exit(1); }
   int main_socket, cli, pid, port_number;
   port_number = atoi(argv[2]);
-  struct TextfileData system_config_data;
   struct sockaddr_in client;
   unsigned int sockaddr_len = sizeof(struct sockaddr_in);
 
   /* Read in conf file and populate struct */
-  setup_server(&system_config_data); 
 
   printf("|Port Number: %d\n", port_number);
 
@@ -66,9 +64,35 @@ int validate_user(char *username, char *password) {
 /*---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  * parse_request - this function will be responsible for taking in the request from the client, parsing out the elements of the body and header, then populating the respective stirngs that were passed in
  *--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- */
-void parse_request(char *file_content, char *body, char *username, char *password, char *file_name) {
+int parse_message_header(char *file_content, char *username, char *password, char *file_name, unsigned long *header_size, unsigned long *body_size) {
   printf("||>> Hello from parse_request\n");
-  printf("    This is the full file_content that was passed to me%s\n", file_content);
+  printf("    This is the full file_content that was passed to me: \n%s\n", file_content);
+  char header_start_string[8];
+  char *ptr;
+  strncpy(header_start_string, file_content, 7);
+  header_start_string[7] = '\0';
+  printf("  This is the start string for the file header: %s\n", header_start_string);
+  if ( (strncmp(header_start_string, "&**&STX", 7)) == 0) {
+    char *token;
+    char *second_token;
+    printf("  We have a header request!!\n");
+    printf("  This is the header: \n%s\n", file_content);
+    printf("  And this is its length: %zu\n", strlen(file_content));
+    *header_size = strlen(file_content);
+    token = strtok(file_content, "\n");
+    printf("  This should be the first line of our header: %s\n", token);
+    second_token = strtok(token, " ");
+    second_token = strtok(NULL, " ");
+    second_token = strtok(NULL, " ");
+    printf("  This should be the size of the body!!! %s\n", second_token);
+    *body_size = strtoul(second_token, &ptr, 10);
+    return 0;
+
+  }
+  else {
+    printf("  looks like a regular body\n");
+    return 1;
+  }
 }
 
 /*---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -84,13 +108,40 @@ void create_file_from_portion(char *file_name, char *body) {
  *----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
 void client_handler(int client) {
   ssize_t read_size;
+  ssize_t total_bytes_read;
+  total_bytes_read = 0;
   char client_message[1024];
+  char body[1024];
+  char username[64];
+  char password[64];
+  char file_name[64];
+  unsigned long header_size = 0;
+  unsigned long body_size = 0;
+  unsigned long  total_size = 1;
   memset(&client_message, 0, sizeof(client_message));
 
-  while( (read_size = recv(client, client_message, 1024, 0)) > 0)
+  while (total_bytes_read != total_size)
   {
-    printf("%s\n", client_message);
-    /*parse_request(client_message, body, username, password, file_name);
+    sleep(1);
+    read_size = recv(client, client_message, 1024, 0);
+    total_bytes_read += read_size;
+    // if our message received on the socket is just the header...no need to write anyting to a file 
+    if ((parse_message_header(client_message, username,  password, file_name, &header_size, &body_size)) == 0) {
+      printf("Just a header, no need to write to any file\n");
+    }
+    // the message received on the socket contains no header
+    else
+    printf("Just read this many bytes: %zu\n", read_size);
+    printf("Total read bytes: %zu\n", total_bytes_read);
+    total_size = header_size + body_size;
+    printf("And this is the total of the body and the header %lu\n", total_size);
+
+    /*
+    printf("This is the username from the header: %s\n", username);
+    printf("This is the password from the header: %s\n", password);
+    printf("This is the body size from the header: %zd\n", body_size);
+    */
+    /*
     if (validate_user(username, password))
       printf("Username and password do not match!!\n");
     else
@@ -100,40 +151,7 @@ void client_handler(int client) {
     memset(&client_message, 0, sizeof(client_message));
   }
 }
-/*--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- * send_response - this function will be the function that actually sends a message to the client. This message will contain the proper headers and the respective body content
- *-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- */
-void send_response(int client, int status_code, struct HTTP_RequestParams *params, char *full_path) {
-}
-/* TODO -> refactor so that there isn't so much hardcoding / repitition */
-/*-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- * construct_file_response - this function is responsible for reading, constructing, and sending files that the user requested. This function is only invoked on a succesful validation of the file path 
- *----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
-void construct_file_response(char *full_path, int client) {
-}
-/*--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- * handle_file_serving - this function will take in a file path, and either construct the correct response body to serve up that file or it will return false if the file does not exist
- *-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- */
-int handle_file_serving(char *path, char *body, struct TextfileData *config_data, int *result_status) {
-  return 0;
-}
-/*-------------------------------------------------------------------------------------------------------------------------------------------
- * validate_request_headers - this function will be take the users path and decide what to do based on the result
- *------------------------------------------------------------------------------------------------------------------------------------------- */
-int validate_request_headers(struct HTTP_RequestParams *params, int *decision) {
-  return 0;
-}
-/*-------------------------------------------------------------------------------------------------------------------------------------------
- * extract_request_parameters - this function will be mainly responsible for parsing and extracting the path from the HTTP request from the client
- *------------------------------------------------------------------------------------------------------------------------------------------- */
-void extract_request_parameters(char *response, struct HTTP_RequestParams *params) {
-}
 
-/*----------------------------------------------------------------------------------------------
- * setup_server - first function called on entry, prints information and reads in config file 
- *---------------------------------------------------------------------------------------------- */
-void setup_server(struct TextfileData *config_data) {
-}
 
 /*----------------------------------------------------------------------------------------------
  * setup_socket - allocate and bind a server socket using TCP, then have it listen on the port

@@ -235,11 +235,13 @@ int handle_put (char *put_command, struct ClientFileContent *params, struct File
   printf("      File Portion 2 going to server #%d and server #%d\n", server_location_array[2], server_location_array[3]);
   printf("      File Portion 3 going to server #%d and server#%d\n", server_location_array[4], server_location_array[5]);
   printf("      File Portion 4 going to server #%d and server #%d\n", server_location_array[6], server_location_array[7]);
+  printf("==============================================================================================\n");
+  printf("==============================================================================================\n\n");
   // This will call the send_file command which will send portion one to the servers designated to receive portion 1
   send_file(server_location_array[0], server_location_array[1], 1, portion_one_size, users_file, params, portion_one_filename);
 
   // This will call the send_file command which will send portion two to the servers designated to receive portion two
-  send_file(server_location_array[2], server_location_array[3], 2, portion_two_size, users_file, params, portion_two_filename);
+  //send_file(server_location_array[2], server_location_array[3], 2, portion_two_size, users_file, params, portion_two_filename);
  
   // This will call the send_file command which will send portion three to the servers designated to receive portion three
   //send_file(server_location_array[4], server_location_array[5], 3, portion_three_size, users_file, params, portion_three_filename);
@@ -248,40 +250,7 @@ int handle_put (char *put_command, struct ClientFileContent *params, struct File
   //send_file(server_location_array[6], server_location_array[7], 4, portion_four_size, users_file, params, portion_two_filename);
 
 
-  /*------------------------
-   * Socket Sending 
-   *------------------------*/
-  // These strings declared below will be used to store the string version of the portion sizes so that we can include them as part of the header string that we send to the DFS 
-  // We convert the ssize_t type that the portion_size variables are made up of and convert them to strings using the snprintf command 
-  /*
-  snprintf(portion_two_size_char, sizeof(portion_two_size_char), "%zu", portion_two_size);
-  snprintf(portion_three_size_char, sizeof(portion_three_size_char), "%zu", portion_three_size);
-  snprintf(portion_four_size_char, sizeof(portion_four_size_char), "%zu", portion_four_size);
 
-
-  // The declarations below are creating the arrays of chars that will ultimately hold the final messages with headers that we send to the server 
-  char portion_one_message[sizeof("PUT ") + sizeof(portion_one_filename) + 8 + sizeof(params->username) + sizeof(params->password) + portion_one_size];
-  char portion_two_message[sizeof("PUT ") + sizeof(portion_two_filename) + 8 + sizeof(params->username) + sizeof(params->password) + portion_two_size];
-  char portion_three_message[sizeof("PUT ") + sizeof(portion_three_filename) + 8 + sizeof(params->username) + sizeof(params->password) + portion_three_size];
-  char portion_four_message[sizeof("PUT ") + sizeof(portion_four_filename) + 8 + sizeof(params->username) + sizeof(params->password) + portion_four_size];
-
-  / The calls below are actually populating the arrays that we instantiated above by creating the headers, appending the body, and writing this to the passed in array of chars 
-  construct_put_message((char *)&portion_one_filename, (char *)&portion_one_size_char, (char *)&portion_one_buffer, params, (char *)&portion_one_message);
-  construct_put_message((char *)&portion_two_filename, (char *)&portion_two_size_char, (char *)&portion_two_buffer, params, (char *)&portion_two_message);
-  construct_put_message((char *)&portion_three_filename, (char *)&portion_three_size_char, (char *)&portion_three_buffer, params, (char *)&portion_three_message);
-  construct_put_message((char *)&portion_four_filename, (char *)&portion_four_size_char, (char *)&portion_four_buffer, params, (char *)&portion_four_message);
-
-  //printf("Portion one: \n%s\n", portion_one_message);
-  //printf("\nPortion two: \n%s\n", portion_two_message);
-  //printf("\nPortion three: \n%s\n", portion_three_message);
-  //printf("\nPortion four: \n%s\n", portion_four_message);
-
-  send_to_server((char *)&portion_one_message, 1, params);
-  send_to_server((char *)&portion_two_message, 2, params);
-  send_to_server((char *)&portion_three_message, 3, params);
-  send_to_server((char *)&portion_four_message, 4, params);
-
-*/
   return 0;
 
 }
@@ -291,18 +260,25 @@ int handle_put (char *put_command, struct ClientFileContent *params, struct File
 
 void send_file (int first_server_number, int second_server_number, int portion_number, ssize_t portion_size, FILE *user_file, struct ClientFileContent *params, char *portion_file_name) {
 
-printf("||>> Hello from send_file\n");
+printf("\n||>> Hello from send_file\n");
+  // set up the size variables that will hold the return values of all the calls to fread and send
   ssize_t read_bytes, written_bytes, total_read_bytes, total_written_bytes;
   ssize_t written_bytes_server_two, total_written_bytes_server_two;
+
+  // set up the two sockets that will connect to the two servers where this file portion will go
   int server_one, server_two;
   server_one = create_socket_to_server(first_server_number, params);
   server_two = create_socket_to_server(second_server_number, params);
 
+  // convert the portion_size from a ssize_t type to a char so that we can include it into our header as text
   char portion_size_char[16];
   snprintf(portion_size_char, sizeof(portion_size_char), "%zu", portion_size);
+
+  // setup and populate the header for the put request
   char message_header[256];
   construct_put_header(portion_file_name, portion_size_char, params, message_header);
-printf("This is the populated header file for the current put request message %s\n", message_header);
+
+  // the two buffers which will keep the data that we incrementally send to the servers
   char data_buffer[1024], data_buffer_server_two[1024];
   ssize_t portion_size_copy;
   portion_size_copy = portion_size;
@@ -311,21 +287,30 @@ printf("This is the populated header file for the current put request message %s
   total_written_bytes_server_two = 0;
   printf("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
   printf("This is the portion size of the file that we are about to read %zu\n", portion_size);
+
+  // Send the file message header to both servers, THEN start sending the body in chunks of 1024 bytes 
+  if ( (send(server_one, message_header, strlen(message_header), 0)) == -1)
+    printf("Error with sending the header to the first server");
+  if ( (send(server_two, message_header, strlen(message_header), 0)) == -1)
+    printf("Error with sending the header to the second server");
+
   while (total_read_bytes != portion_size) {
     sleep(1);
     if (portion_size_copy > 1024) {
       read_bytes = fread(data_buffer, 1, 1024, user_file);
       memcpy(&data_buffer_server_two, &data_buffer, sizeof(data_buffer_server_two));
       printf("This is how many bytes were read from the file (should be 1024):%zu\n", read_bytes);
-      printf("This is what was read from the file:\n%s\n", data_buffer);
-      printf("And this is what was copied to the second buffer:\n%s\n", data_buffer_server_two);
+      //printf("This is what was read from the file:\n%s\n", data_buffer);
+      //printf("And this is what was copied to the second buffer:\n%s\n", data_buffer_server_two);
       total_read_bytes += read_bytes;
       written_bytes = send(server_one, data_buffer, read_bytes, 0);
       written_bytes_server_two = send(server_two, data_buffer_server_two, read_bytes, 0);
+
       if (written_bytes == -1)
         printf("Error with writing bytes to server %d\n", first_server_number);
       if (written_bytes_server_two == -1)
         printf("Error with writing bytes to server %d\n", second_server_number);
+
       total_written_bytes += written_bytes;
       total_written_bytes_server_two += written_bytes_server_two;
       printf("This is how many bytes were written to server %d (should be 1024): %zu\n",first_server_number, written_bytes);
@@ -342,9 +327,9 @@ printf("This is the populated header file for the current put request message %s
       memset(&data_buffer_server_two, 0, sizeof(data_buffer));
       read_bytes = fread(data_buffer, 1, portion_size, user_file);
       memcpy(&data_buffer_server_two, &data_buffer, sizeof(data_buffer_server_two));
-      printf("This is how many bytes were read from the file %zu\n", read_bytes);
-      printf("This is what was read from the file:\n%s\n", data_buffer);
-      printf("And this is what was copied to the second buffer:\n%s\n", data_buffer_server_two);
+      printf("This is how many bytes were read from the file %zu bytes\n", read_bytes);
+      //printf("This is what was read from the file:\n%s\n", data_buffer);
+      //printf("And this is what was copied to the second buffer:\n%s\n", data_buffer_server_two);
       total_read_bytes += read_bytes;
       written_bytes = send(server_one, data_buffer, read_bytes, 0);
       written_bytes_server_two = send(server_two, data_buffer_server_two, read_bytes, 0);
@@ -354,16 +339,16 @@ printf("This is the populated header file for the current put request message %s
         printf("Error with writing bytes to server %d\n", second_server_number);
       total_written_bytes += written_bytes;
       total_written_bytes_server_two += written_bytes_server_two;
-      printf("This is how many bytes were just written to server %d : %zu and to server %d : %zu\n",first_server_number, written_bytes, second_server_number, written_bytes_server_two);
-      printf("This is how many bytes have been read total: %zu\n", total_read_bytes);
-      printf("This is how many bytes have been written total to server %d: %zu and to server %d : %zu\n", first_server_number, total_written_bytes, second_server_number, total_written_bytes_server_two);
+      printf("This is how many bytes were just written to server %d:%zu bytes and to server %d:%zubytes\n",first_server_number, written_bytes, second_server_number, written_bytes_server_two);
+      //printf("This is how many bytes have been read total: %zu\n", total_read_bytes);
+      //printf("This is how many bytes have been written total to server %d: %zu and to server %d:%zu\n", first_server_number, total_written_bytes, second_server_number, total_written_bytes_server_two);
       printf("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
       memset(&data_buffer, 0, sizeof(data_buffer));
     }
 
   }
-  //close(server_one);
-  //close(server_two);
+  close(server_one);
+  close(server_two);
 
 }
 int create_socket_to_server(int server_number, struct ClientFileContent *params) {
@@ -397,7 +382,7 @@ int create_socket_to_server(int server_number, struct ClientFileContent *params)
  *---------------------------------------------------------------------------------------------------------------------------------------------------------- */
 void construct_put_header(char *filename, char *filesize, struct ClientFileContent *params, char *header) 
 {
-  strcpy(header, "PUT ");
+  strcpy(header, "&**&STXPUT ");
   strcat(header, filename);
   strcat(header, " ");
   strcat(header, filesize);

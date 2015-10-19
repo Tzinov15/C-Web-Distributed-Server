@@ -49,16 +49,10 @@ struct TextfileData {
 };
 
 /* Function Declarations */
+void deleteSubstring(char *original_string,const char *sub_string);
+int setup_socket (int port_number, int max_clients);
 int validate_user(char *username, char *password);
-void parse_request(char *file_content, char *body, char *username, char *password, char *file_name);
 void client_handler(int client);
 void create_file_from_portion(char *file_name, char *body);
+int parse_message_header(char *file_content, char *username, char *password, char *file_name, unsigned long *header_size, unsigned long *body_size);
 
-void send_response(int client, int status_code, struct HTTP_RequestParams *params, char *full_path);
-int handle_file_serving(char *path, char *body, struct TextfileData *config_data, int *result_status);
-int validate_request_headers(struct HTTP_RequestParams *params, int *decision);
-void extract_request_parameters(char *response, struct HTTP_RequestParams *params);
-void removeSubstring(char *s,const char *toremove);
-int setup_socket (int port_number, int max_clients);
-void setup_server(struct TextfileData *config_data);
-void construct_file_response(char *full_path, int client);
