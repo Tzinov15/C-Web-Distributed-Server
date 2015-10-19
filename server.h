@@ -10,6 +10,7 @@
 #include<arpa/inet.h>
 #include<pthread.h>
 #include<sys/stat.h>
+#include<dirent.h>
 #define ERROR -1
 #define MAX_CLIENTS 5
 #define MAX_DATA 1024

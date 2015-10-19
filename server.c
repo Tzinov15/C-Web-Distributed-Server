@@ -105,34 +105,66 @@ void create_file_from_portion(char *file_name, char *body, int port_number, char
   printf("||>> Hello from create_file_from_portion\n");
   printf("    This is the file_name that was passed to me: %s\n", file_name);
   printf("    This is the body that was passed to me: \n%s\n", body);
-  char new_file_name[strlen(file_name) + 3];
-  char directory_name[5];
+  char new_file_name[strlen(file_name) + 16];
+  memset(&new_file_name, 0, sizeof(new_file_name));
+  char directory_name[16];
+  memset(&directory_name, 0, sizeof(directory_name));
   char server_number_char[2];
   int server_number;
+  
   // Set up the filename by adding server number, a dot, and the original filename passed in
   server_number = port_number - 10000;
   sprintf(server_number_char, "%d", server_number);
   strncpy(new_file_name, server_number_char, 2);
   strncat(new_file_name, ".", 1);
   strncat(new_file_name, file_name, strlen(file_name));
-  printf("This is our shiny new file_name: \n%s\n", new_file_name);
+  printf("This is our new file_name: %s\n", new_file_name);
 
+  // Set up the directory by adding current directory, a slash, "DFS", server number, a slash, username
   strncpy(directory_name, "DFS", 3);
   strncat(directory_name, server_number_char, 2);
-  printf("This is our shiny new directory name: \n%s\n", directory_name);
 
   char cwd[1024];
-  char full_dir_path[1024+strlen(directory_name) + strlen(user_name) + 3];
-  if (getcwd(cwd, sizeof(cwd)) != NULL)
-    printf("Current working directory: %s\n", cwd);
-  else
+  if (getcwd(cwd, sizeof(cwd)) == NULL)
     printf("Error with getcwd()\n");
+  char full_dir_path[strlen(cwd)+strlen(directory_name) + strlen(user_name) + 16];
+  memset(&full_dir_path, 0, sizeof(full_dir_path));
   strncpy(full_dir_path, cwd, strlen(cwd));
   strncat(full_dir_path, "/", 1);
   strncat(full_dir_path, directory_name, strlen(directory_name));
   strncat(full_dir_path, "/", 1);
   strncat(full_dir_path, user_name, strlen(user_name));
-  printf("This is our full directory path: %s\n", full_dir_path);
+  printf("This is our new directory_name: %s\n", new_file_name);
+  
+  // check for directory precesne
+  struct stat st;
+
+  if (stat(full_dir_path, &st) == -1) {
+    printf("Users directory does not exist, creating it right now\n");
+    mkdir(full_dir_path, 0700);
+  }
+  else
+    printf("Yay the users directory already exsists, must have been created before\n");
+
+  DIR* dir = opendir(full_dir_path);
+  if (dir)
+    printf("Yay the users directory exists!!!\n");
+  else if (ENOENT == errno)
+    printf("Users directory does not exist (shouldn't happen at this point...)\n");
+  else
+    printf("opendir() failed for some other reason\n");
+
+  char full_file_path[strlen(full_dir_path) + strlen(new_file_name) + 16];
+  memset(&full_file_path, 0, sizeof(full_file_path));
+  strncpy(full_file_path, full_dir_path, strlen(full_dir_path));
+  strncat(full_file_path, "/", 1);
+  strncat(full_file_path, new_file_name, strlen(new_file_name));
+  printf("This is our final, complte file path: %s\n", full_file_path);
+  
+  FILE *file_portion;
+  file_portion=fopen(full_file_path, "a");
+
+  fwrite(body, 1, strlen(body), file_portion);
 
 
 }
