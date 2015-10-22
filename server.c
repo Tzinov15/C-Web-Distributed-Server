@@ -10,6 +10,15 @@ int main(int argc, char ** argv)
   if (argc < 3) {
     printf("Please specify a port number \n");
     exit(1); }
+
+  struct Username_Passwords user_pass;
+  parse_server_conf_file(&user_pass);
+  int i;
+  for (i = 0; i < MAX_USERS; i++)
+  {
+    printf("This is user number %d. Username: %s. Password: %s\n", i, user_pass.username[i], user_pass.password[i]);
+  }
+
   int main_socket, cli, pid, port_number;
   port_number = atoi(argv[2]);
   struct sockaddr_in client;
@@ -52,6 +61,55 @@ int main(int argc, char ** argv)
     }
   }
 }
+
+void parse_server_conf_file(struct Username_Passwords *name_password) {
+
+  struct stat buffer;
+  
+  /* This will always be our server conf file */
+  char filename[9] = "dfs.conf";
+  filename[8] = '\0';
+
+  /* file pointer for our dfs.conf file */
+  FILE *config_file;
+  char *leftover, read_line[200];
+
+  /* check if file exists */
+  if (stat (filename, &buffer) != 0) {
+    perror("Conf file doesn't exist: ");
+    exit(-1);
+  }
+
+  /* check if file can be opened */
+  config_file = fopen(filename, "r");
+  if (config_file == NULL) {
+    perror("Opening conf file did not work: ");
+    exit(-1);
+  }
+  
+  printf("Server conf file succesfully opened!!\n");
+
+  char *token;
+  int counter = 0;
+
+  while (fgets (read_line,200, config_file) != NULL) {
+    if (counter == MAX_USERS) {
+      printf("Max number of users parsed, ignoring the rest\n");
+      return;
+    }
+      token = strtok(read_line, " ");
+      printf("This should be our username: %s\n", token);
+      strcpy(name_password->username[counter], token);
+      token = strtok(NULL, " ");
+
+      deleteSubstring(token, "\n");
+      printf("This should be our password: %s\n", token);
+      strcpy(name_password->password[counter], token);
+      counter++;
+  }
+
+}
+
 /*---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  * validate_user - this function will take the username and passed into it, validate that the two match with the dfs.conf record, and return a 0 or a 1 based on the result
  *--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- */
@@ -75,7 +133,7 @@ int parse_message_header(char *file_content, char *username, char *password, cha
     char *new_token;
     char *header_left_over;
     char *second_token;
-    printf("  Header Request!! \n%s\n", file_content);
+    printf("  Header Request!!\n\n");
     *header_size = strlen(file_content);
     token = strtok_r(file_content, "\n", &header_left_over);
     second_token = strtok(token, " ");
@@ -85,16 +143,14 @@ int parse_message_header(char *file_content, char *username, char *password, cha
     *body_size = strtoul(second_token, &ptr, 10);
     new_token = strtok(header_left_over, "\n");
     strcpy(username, new_token);
-    printf("I have no idea what this line will be: %s\n", new_token);
     new_token = strtok(NULL, "\n");
     strcpy(password, new_token);
-    printf("or this one : %s\n", new_token);
-    return 0;
+    return 1;
 
   }
   else {
-    printf("  looks like a regular body\n");
-    return 1;
+    printf("  Regular Body\n");
+    return 0;
   }
 }
 
@@ -118,7 +174,6 @@ void create_file_from_portion(char *file_name, char *body, int port_number, char
   strncpy(new_file_name, server_number_char, 2);
   strncat(new_file_name, ".", 1);
   strncat(new_file_name, file_name, strlen(file_name));
-  printf("This is our new file_name: %s\n", new_file_name);
 
   // Set up the directory by adding current directory, a slash, "DFS", server number, a slash, username
   strncpy(directory_name, "DFS", 3);
@@ -134,21 +189,16 @@ void create_file_from_portion(char *file_name, char *body, int port_number, char
   strncat(full_dir_path, directory_name, strlen(directory_name));
   strncat(full_dir_path, "/", 1);
   strncat(full_dir_path, user_name, strlen(user_name));
-  printf("This is our new directory_name: %s\n", new_file_name);
   
   // check for directory precesne
   struct stat st;
 
   if (stat(full_dir_path, &st) == -1) {
-    printf("Users directory does not exist, creating it right now\n");
     mkdir(full_dir_path, 0700);
   }
-  else
-    printf("Yay the users directory already exsists, must have been created before\n");
 
   DIR* dir = opendir(full_dir_path);
-  if (dir)
-    printf("Yay the users directory exists!!!\n");
+  if (dir) {}
   else if (ENOENT == errno)
     printf("Users directory does not exist (shouldn't happen at this point...)\n");
   else
@@ -159,10 +209,9 @@ void create_file_from_portion(char *file_name, char *body, int port_number, char
   strncpy(full_file_path, full_dir_path, strlen(full_dir_path));
   strncat(full_file_path, "/", 1);
   strncat(full_file_path, new_file_name, strlen(new_file_name));
-  printf("This is our final, complte file path: %s\n", full_file_path);
   
   FILE *file_portion;
-  file_portion=fopen(full_file_path, "a");
+  file_portion=fopen(full_file_path, "w");
 
   fwrite(body, 1, strlen(body), file_portion);
 
@@ -175,34 +224,34 @@ void client_handler(int client, int port_number) {
   ssize_t read_size;
   ssize_t total_bytes_read;
   total_bytes_read = 0;
-  char client_message[1024];
+  char client_message[1024+256];
   char body[1024];
   char username[64];
   char password[64];
   char file_name[64];
+  int is_header;
   unsigned long header_size = 0;
   unsigned long body_size = 0;
   unsigned long  total_size = 1;
   memset(&client_message, 0, sizeof(client_message));
+  memset(&body, 0, sizeof(body));
+
+  printf("======================\n");
+  printf("======================\n");
 
   while (total_bytes_read != total_size)
   {
-    printf("======================\n");
-    printf("======================\n");
     sleep(1);
     read_size = recv(client, client_message, 1024, 0);
     total_bytes_read += read_size;
     printf("Just read this many bytes: %zu\n", read_size);
     printf("Total read bytes: %zu\n", total_bytes_read);
     // if our message received on the socket is just the header...no need to write anyting to a file 
-    if ((parse_message_header(client_message, username,  password, file_name, &header_size, &body_size)) == 0) {
-      printf("Just a header, no need to write to any file\n");
-    }
-    // the message received on the socket contains no header, which means it is body of the file
-    else {
-      printf("We have a file body to deal with...\n");
+    is_header =  (parse_message_header(client_message, username,  password, file_name, &header_size, &body_size));
+    if (validate_user(username, password))
+      printf("Username and password do not match!!\n");
+    else if (!is_header)
       create_file_from_portion(file_name, client_message, port_number, username);
-    }
     total_size = header_size + body_size;
 
     /*
