@@ -27,6 +27,7 @@
 #define BAD_URI 4041
 #define BAD_HTTP_VERSION 4042
 #define NUM_OF_FILE_TYPES 8
+#define MAX_USERS 5
 
 
 /*--------------/
@@ -35,10 +36,9 @@
 
 /* Struct Definitions */
 
-struct HTTP_RequestParams {
-  char *method;
-  char *URI;
-  char *httpversion;
+struct Username_Passwords {
+  char username[MAX_USERS][64];
+  char password[MAX_USERS][64];
 };
 
 struct TextfileData {
@@ -50,10 +50,11 @@ struct TextfileData {
 };
 
 /* Function Declarations */
+void parse_server_conf_file(struct Username_Passwords *name_password);
 void deleteSubstring(char *original_string,const char *sub_string);
 int setup_socket (int port_number, int max_clients);
-int validate_user(char *username, char *password);
-void client_handler(int client, int port_number);
+int validate_user(char *username, char *password, struct Username_Passwords *name_password);
+void client_handler(int client, int port_number, struct Username_Passwords *name_password);
 void create_file_from_portion(char *file_name, char *body, int port_number, char *user_name);
 int parse_message_header(char *file_content, char *username, char *password, char *file_name, unsigned long *header_size, unsigned long *body_size);
 
