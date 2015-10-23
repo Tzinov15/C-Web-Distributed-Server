@@ -43,6 +43,7 @@ int create_socket_to_server(int server_number, struct ClientFileContent *params)
 void send_to_server(char *message, int server_number, struct ClientFileContent *params);
 
 void construct_put_header(char *filename, char *filesize, struct ClientFileContent *params, char *header);
+void construct_getpn_header(char *filename, struct ClientFileContent *params, char *header);
 void construct_get_header(char *filename, struct ClientFileContent *params, char *header);
 void construct_list_header(struct ClientFileContent *params, char *header);
 

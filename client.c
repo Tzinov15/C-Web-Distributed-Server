@@ -74,20 +74,32 @@ int handle_get (char *get_command, struct ClientFileContent *params, struct File
    * File Download Operations
    *------------------------*/
   ssize_t server_message_size;
-  char message_header[256];
+  char message_pn_header[256];
+  char recv_pn_response_ack[] = "Received the PNs!";
   char server_message_buffer[1024];
-  construct_get_header(file_name, params, message_header);
-  printf("This is our get request so far: \n%s\n",message_header );
+  construct_getpn_header(file_name, params, message_pn_header);
+  printf("This is our get request so far: \n%s\n",message_pn_header );
 
+  int i;
   int server;
-  server = create_socket_to_server(1, params);
-  if ( (send(server, message_header, strlen(message_header), 0)) == -1)
-    printf("Error with sending the header to the first server");
+  for (i = 1; i < 5; i++)
+  {
+    server = create_socket_to_server(i, params);
 
-  server_message_size = recv(server, server_message_buffer, 1024, 0);
-  printf("Server: %s\n",server_message_buffer );
-  
-  close(server);
+    if ( (send(server, message_pn_header, strlen(message_pn_header), 0)) == -1)
+      printf("Error with sending the header to the first server");
+
+    server_message_size = recv(server, server_message_buffer, 1024, 0);
+    printf("Server: %s\n",server_message_buffer );
+    memset(&server_message_buffer, 0, sizeof(server_message_buffer));
+
+    server_message_size = recv(server, server_message_buffer, 1024, 0);
+    printf("Server: %s\n",server_message_buffer );
+    if ( (send(server, recv_pn_response_ack, strlen(recv_pn_response_ack), 0)) == -1)
+      printf("Error with sending the ack to the server");
+    memset(&server_message_buffer, 0, sizeof(server_message_buffer));
+    close(server);
+  }
 
   return 0;
 }
@@ -385,6 +397,19 @@ void construct_put_header(char *filename, char *filesize, struct ClientFileConte
   strcat(header, filename);
   strcat(header, " ");
   strcat(header, filesize);
+  strcat(header, "\n");
+  strcat(header, params->username);
+  strcat(header, "\n");
+  strcat(header, params->password);
+  strcat(header, "\n");
+}
+/*-------------------------------------------------------------------------------------------
+ * construct_getpn_header - this function is responsible for assembling the put request header
+ *-------------------------------------------------------------------------------------------*/
+void construct_getpn_header(char *filename, struct ClientFileContent *params, char *header) 
+{
+  strcpy(header, "&**&STXGETPN ");
+  strcat(header, filename);
   strcat(header, "\n");
   strcat(header, params->username);
   strcat(header, "\n");

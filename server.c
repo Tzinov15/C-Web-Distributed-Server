@@ -13,6 +13,11 @@ int main(int argc, char ** argv)
 
   struct FilePortionLocations portion_locations;
   struct Username_Passwords user_pass;
+  int i;
+  for (i = 0; i < 4; i++)
+  {
+    strcpy(portion_locations.portion_locations[i], "EMPTY");
+  }
 
 
   parse_server_conf_file(&user_pass);
@@ -140,7 +145,7 @@ int validate_user(char *username, char *password, struct Username_Passwords *nam
  *--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- */
 int parse_message_header(char *file_content, char *username, char *password, char *file_name, unsigned long *header_size, unsigned long *body_size, char *method) {
   printf("||>> Hello from parse_request\n");
-  char header_start_string[11];
+  char header_start_string[13];
   char *ptr;
 
   char *backup_first_line_left_over;
@@ -151,8 +156,8 @@ int parse_message_header(char *file_content, char *username, char *password, cha
   char *new_token;
   char *header_left_over;
   char *second_token;
-  strncpy(header_start_string, file_content, 10);
-  header_start_string[10] = '\0';
+  strncpy(header_start_string, file_content, 12);
+  header_start_string[12] = '\0';
   if ( (strncmp(header_start_string, "&**&STX", 7)) == 0) {
     printf("  Header Request!!\n\n");
     *header_size = strlen(file_content);
@@ -172,6 +177,11 @@ int parse_message_header(char *file_content, char *username, char *password, cha
       file_size_token = strtok(NULL, " ");
       *body_size = strtoul(file_size_token, &ptr, 10);
       strcpy(method, "PUT");
+      return 1;
+    }
+    if ( (strncmp(header_start_string, "&**&STXGETPN", 12)) == 0) {
+      printf("  GETPN request\n");
+      strcpy(method, "GETPN");
       return 1;
     }
     if ( (strncmp(header_start_string, "&**&STXGET", 10)) == 0) {
@@ -263,10 +273,14 @@ void client_handler(int client, int port_number, struct Username_Passwords *name
   char success_message[] = "File writing successful!";
   char header_ack_message[] = "Recieved your header!! User/Pass authorized!";
   char get_response_message[] = "Your file has been retreived";
-  char request_method[5];
+  char getpn_response_message[] = "MOCK getpn response 3 2 13";
+  char request_method[6];
   memset(&request_method, 0, sizeof(request_method));
   // this array of strings wilh hold the path locations of file poritons 1-4
 
+  ssize_t client_ack_size;
+  char client_ack_message_buffer [64];
+  memset(&client_ack_message_buffer, 0, sizeof(client_ack_message_buffer));
   memset(&client_message, 0, sizeof(client_message));
   memset(&body, 0, sizeof(body));
 
@@ -290,37 +304,42 @@ void client_handler(int client, int port_number, struct Username_Passwords *name
   else {
     printf("Not the header, which is odd because it should be the header at this point \n");
   }
+  if (strncmp(request_method, "GETPN", 5) == 0)
+  {
+    printf("Hello from the getpn handler from the server\n");
+    send(client, getpn_response_message, sizeof(getpn_response_message), 0);
+    client_ack_size = recv(client, client_ack_message_buffer, 64, 0);
+    printf("This is the ack from the client: %s\n", client_ack_message_buffer);
+    return;
+  }
   if (strncmp(request_method, "GET", 3) == 0)
   {
-    int i;
+    int i, server_number;
+    server_number = port_number - 10000;
+    char server_number_char[2];
+    sprintf(server_number_char, "%d", server_number);
+
+    char server_name[8];
+    memset(&server_name, 0, sizeof(server_name));
+    strncpy(server_name, "DFS", 3);
+    strncat(server_name, server_number_char, 2);
     printf("We have a GET request that we need to deal with!!\n");
     char generic_dfs_folder_name [] = "%s/%s/";
 
-    char dfs1_path[sizeof(generic_dfs_folder_name) + 64];
-    memset(&dfs1_path, 0, sizeof(dfs1_path));
-    snprintf(dfs1_path, sizeof(dfs1_path), generic_dfs_folder_name, "DFS1", username);
+    char dfs_path[sizeof(generic_dfs_folder_name) + 64];
+    memset(&dfs_path, 0, sizeof(dfs_path));
+    snprintf(dfs_path, sizeof(dfs_path), generic_dfs_folder_name, server_name, username);
 
-
-    char dfs2_path[sizeof(generic_dfs_folder_name) + 64];
-    memset(&dfs2_path, 0, sizeof(dfs2_path));
-    snprintf(dfs2_path, sizeof(dfs2_path), generic_dfs_folder_name, "DFS2", username);
-
-    char dfs3_path[sizeof(generic_dfs_folder_name) + 64];
-    memset(&dfs3_path, 0, sizeof(dfs3_path));
-    snprintf(dfs3_path, sizeof(dfs3_path), generic_dfs_folder_name, "DFS3", username);
-
-    char dfs4_path[sizeof(generic_dfs_folder_name) + 64];
-    memset(&dfs4_path, 0, sizeof(dfs4_path));
-    snprintf(dfs4_path, sizeof(dfs4_path), generic_dfs_folder_name, "DFS4", username);
-
-    find_file_portions(file_name, dfs1_path, locations);
-    for (i = 0; i < 4; i++)
-    {
-      printf("File portion %d can be found at %s\n", i, locations->portion_locations[i]);
+    find_file_portions(file_name, dfs_path, locations);
+    /*if ( (are_file_portions_ready) == 0) {
+      printf("Yay! Accumulated enough file portions to reconstruct file\n");
+      send_back_file(locations, client);
+      return;
     }
     send(client, get_response_message, sizeof(get_response_message), 0);
-    return;
-
+    else
+      printf("Not enough parts have been accumulated, need to collect more servers...\n");
+    */
   }
   if (strncmp(request_method, "PUT", 3) == 0)
   {
@@ -346,6 +365,21 @@ void client_handler(int client, int port_number, struct Username_Passwords *name
     send(client, success_message, sizeof(success_message), 0);
   }
 }
+
+void send_back_file(locations, client) {
+}
+
+int are_file_portions_ready (struct FilePortionLocations *locations) {
+  int i;
+  for (i = 0; i < 4; i++)
+  {
+    if ( (strncmp(locations->portion_locations[i], "EMPTY", 5)) == 0 )
+      return 1;
+  }
+  return 0;
+}
+
+
 void find_file_portions(char *file_name,  char *directory_path, struct FilePortionLocations *locations)
 {
   DIR *dp;
@@ -368,7 +402,6 @@ void find_file_portions(char *file_name,  char *directory_path, struct FilePorti
         strncat(complete_portion_file_path, ep->d_name, strlen(ep->d_name));
         printf("This should be our complete file path for the portion: %s\n", complete_portion_file_path);
         strcpy(locations->portion_locations[file_portion_number-1], complete_portion_file_path);
-        printf("should be getting a print here...\n");
         memset(&complete_portion_file_path, 0, sizeof(complete_portion_file_path));
       }
     } 
