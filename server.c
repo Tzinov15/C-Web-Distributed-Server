@@ -224,7 +224,7 @@ void create_file_from_portion(char *file_name, char *body, int port_number, char
   strncat(full_file_path, new_file_name, strlen(new_file_name));
 
   FILE *file_portion;
-  file_portion=fopen(full_file_path, "w");
+  file_portion=fopen(full_file_path, "a");
 
   fwrite(body, 1, strlen(body), file_portion);
 

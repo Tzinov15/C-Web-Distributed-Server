@@ -231,18 +231,16 @@ int handle_put (char *put_command, struct ClientFileContent *params, struct File
   // This will call the send_file command which will send portion one to the servers designated to receive portion 1
   send_file(server_location_array[0], server_location_array[1], 1, portion_one_size, users_file, params, portion_one_filename);
 
-  /*
   // This will call the send_file command which will send portion two to the servers designated to receive portion two
-  //send_file(server_location_array[2], server_location_array[3], 2, portion_two_size, users_file, params, portion_two_filename);
+  send_file(server_location_array[2], server_location_array[3], 2, portion_two_size, users_file, params, portion_two_filename);
 
   // This will call the send_file command which will send portion three to the servers designated to receive portion three
-  //send_file(server_location_array[4], server_location_array[5], 3, portion_three_size, users_file, params, portion_three_filename);
+  send_file(server_location_array[4], server_location_array[5], 3, portion_three_size, users_file, params, portion_three_filename);
 
   // This will call the send_file command which will send portion four to the servers designated to receive portion four
-  //send_file(server_location_array[6], server_location_array[7], 4, portion_four_size, users_file, params, portion_four_filename);
+  send_file(server_location_array[6], server_location_array[7], 4, portion_four_size, users_file, params, portion_four_filename);
 
 
-*/
   return 0;
 
 }
@@ -265,7 +263,6 @@ void send_file (int first_server_number, int second_server_number, int portion_n
   // setup and populate the header for the put request
   char message_header[256];
   construct_put_header(portion_file_name, portion_size_char, params, message_header);
-  printf("This is the header that we constructed for this file portion: \n%s\n",message_header);
 
   // the two buffers which will keep the data that we incrementally send to the servers
   char data_buffer[1024], data_buffer_server_two[1024];
