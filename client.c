@@ -1,16 +1,14 @@
 #include "client.h"
 int main(int argc, char ** argv) {
-  printf("| Welcome to this wonderful C client! |\n\n");
 
   struct ClientFileContent client_params;
 
   if (argc < 2) {
     printf("Please specify a dfc.conf file\n");
-    exit(1); 
+    exit(1);
   }
 
   parse_client_conf_file(&client_params, argv[1]);
-
 
   printf("*-----------------------------------------------*\n");
   printf("|  To see of a list of your files, enter LIST   |\n");
@@ -20,7 +18,6 @@ int main(int argc, char ** argv) {
   printf("*-----------------------------------------------*\n");
   char user_input[100];
 
-  while (1) {
     while (fgets(user_input, 100, stdin)) {
       deleteSubstring(user_input, "\n");
       if (strncmp(user_input, "Exit", strlen("Exit")) == 0) {
@@ -39,8 +36,8 @@ int main(int argc, char ** argv) {
       }
 
     }
-  }
-  /* Free the memory allocated for the strings within the ClientFileContent struct */
+
+  // Free the memory allocated for the two dynamic strings within the ClientFileContent struct 
   free (client_params.username);
   free (client_params.password);
 }
@@ -118,30 +115,17 @@ int calculate_hash_modulo_value(char * file_name)
  * handle_put - this function will be responsible for uploading all the files available on the DFS servers
  *------------------------------------------------------------------------------------------------------- */
 int handle_put (char *put_command, struct ClientFileContent *params, struct FileDistributionCombination *matrix){
-
-  //printf("||>> Hi from handle_put\n");
+  printf("||>> Hi from handle_put\n");
   // Structs needed to be able to call the stat function for file information
   struct stat buffer;
-  /* file_name used in strtok_r to capture content after space, read_line is buffer that fgets writes to, extra_args is for any additional parameters that the user wrongly supplied */
+  // file_name used in strtok_r to capture content after space, read_line is buffer that fgets writes to, extra_args is for any additional parameters that the user wrongly supplied */
   char *file_name, read_line[200], *extra_args;
 
-
-  /*-----------------------------------
-   * Error Checking / Input Validation
-   *----------------------------------- */
   /* Extract the second word from the PUT command (the filename) and strip it of newline character */
   strtok_r(put_command, " ", &file_name);
   if (file_name == NULL) {
     printf("You have not specified a file to upload. Please try again...\n");
     return 1;
-  }
-
-  /* Actually open the file that the user specified from the command line */
-  FILE *users_file;
-  users_file = fopen(file_name, "r");
-  if (users_file == NULL) { 
-    perror("Opening user file: ");
-    exit(-1); 
   }
 
   /* Extract any potential arguments following our file name which should not be there */
@@ -150,11 +134,20 @@ int handle_put (char *put_command, struct ClientFileContent *params, struct File
     printf("You have specified too many arguments. Please try again...\n");
     return 1;
   }
+
   /* Check for file precense  */
   if (stat (file_name, &buffer) != 0) {
     printf("The file you have tried to upload does exist, please try again\n");
     return 1;
   }
+  /* Actually open the file that the user specified from the command line */
+  FILE *users_file;
+  users_file = fopen(file_name, "r");
+  if (users_file == NULL) { 
+    perror("Opening user file: ");
+    return 1;
+  }
+
   /*------------------------
    * File Consruction Operations
    *------------------------*/
@@ -163,37 +156,41 @@ int handle_put (char *put_command, struct ClientFileContent *params, struct File
 
   char generic_filename [] = "%s.%d";
 
-  /* Construct filename for first portion of original file */
+  // Construct filename for first portion of original file 
   char portion_one_filename[sizeof(generic_filename) + sizeof(file_name) + 1];
   memset(&portion_one_filename, 0, sizeof(portion_one_filename));
   snprintf(portion_one_filename, sizeof(portion_one_filename), generic_filename, file_name, 1);
+  printf("File portion number one filename: %s\n", portion_one_filename);
 
-  /* Construct filename for second portion of original file */
+  // Construct filename for second portion of original file 
   char portion_two_filename[sizeof(generic_filename) + sizeof(file_name) + 1];
   memset(&portion_two_filename, 0, sizeof(portion_two_filename));
   snprintf(portion_two_filename, sizeof(portion_two_filename), generic_filename, file_name, 2);
+  printf("File portion number two filename: %s\n", portion_two_filename);
 
-  /* Construct filename for third portion of original file */
+  // Construct filename for third portion of original file 
   char portion_three_filename[sizeof(generic_filename) + sizeof(file_name) + 1];
   memset(&portion_three_filename, 0, sizeof(portion_three_filename));
   snprintf(portion_three_filename, sizeof(portion_three_filename), generic_filename, file_name, 3);
+  printf("File portion number three filename: %s\n", portion_three_filename);
 
-  /* Construct filename for fourth portion of original file */
+  // Construct filename for fourth portion of original file 
   char portion_four_filename[sizeof(generic_filename) + sizeof(file_name) + 1];
   memset(&portion_four_filename, 0, sizeof(portion_four_filename));
   snprintf(portion_four_filename, sizeof(portion_four_filename), generic_filename, file_name, 4);
+  printf("File portion number four filename: %s\n", portion_four_filename);
 
 
 
   ssize_t file_size, file_size_copy;
   ssize_t portion_one_size, portion_two_size, portion_three_size, portion_four_size;
 
-  /* Get size of file that user specified */
+  // Get size of file that user specified 
   file_size = buffer.st_size; 
   file_size_copy = file_size;
-  //printf("    The size of the original file is %zd\n", file_size); 
+  printf("    The size of the original file is %zd\n", file_size); 
 
-  /* Set the file sizes of each portion based on the original size of the complete file */
+  // Set the file sizes of each portion based on the original size of the complete file 
   portion_one_size = file_size / 4;
   file_size_copy -= portion_one_size;
 
@@ -228,7 +225,6 @@ int handle_put (char *put_command, struct ClientFileContent *params, struct File
       printf("Invalid hash value, there must be an issue in the hash calc function\n" );
   }
 
-  printf("||>> Back to handle_put\n");
   printf("    These are the values of the server_location\n");
   printf("      File Portion 1 going to server #%d and server #%d\n", server_location_array[0], server_location_array[1]);
   printf("      File Portion 2 going to server #%d and server #%d\n", server_location_array[2], server_location_array[3]);
@@ -237,6 +233,7 @@ int handle_put (char *put_command, struct ClientFileContent *params, struct File
   printf("==============================================================================================\n");
   printf("==============================================================================================\n\n");
   // This will call the send_file command which will send portion one to the servers designated to receive portion 1
+  /*
   send_file(server_location_array[0], server_location_array[1], 1, portion_one_size, users_file, params, portion_one_filename);
 
   // This will call the send_file command which will send portion two to the servers designated to receive portion two
@@ -249,12 +246,10 @@ int handle_put (char *put_command, struct ClientFileContent *params, struct File
   //send_file(server_location_array[6], server_location_array[7], 4, portion_four_size, users_file, params, portion_four_filename);
 
 
-
+*/
   return 0;
 
 }
-
-
 
 
 void send_file (int first_server_number, int second_server_number, int portion_number, ssize_t portion_size, FILE *user_file, struct ClientFileContent *params, char *portion_file_name) {
@@ -346,6 +341,7 @@ printf("\n||>> Hello from send_file\n");
       printf("This is how many bytes have been written total to server %d: %zu and to server %d:%zu\n", first_server_number, total_written_bytes, second_server_number, total_written_bytes_server_two);
       printf("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
     }
+    //
     /*
     first_server_message_size = recv(server_one, first_server_message_buffer, 1024, MSG_DONTWAIT);
     second_server_message_size = recv(server_two, second_server_message_buffer, 1024, MSG_DONTWAIT);
@@ -354,6 +350,7 @@ printf("\n||>> Hello from send_file\n");
     if (second_server_message_size != 0)
       printf("Server #%d: %s\n",second_server_number,second_server_message_buffer );
       */
+      
 
   }
   close(server_one);
@@ -410,54 +407,63 @@ void handle_list () {
   printf("1.txt \n 2.txt \n 3.txt");
 }
 /*--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- * parse_client_conf_file - this function takes in a file name and the client params struct, and will popuate the struct after parsing and extracting info from the dfc.conf file 
+ * COMPLETE - parse_client_conf_file - this function takes in a file name and the client params struct, and will popuate the struct after parsing and extracting info from the dfc.conf file 
  *-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- */
 void parse_client_conf_file(struct ClientFileContent *params, char *file_name) {
-
-  /* Structs needed to be able to call the stat function which checks for file presence */
+  // Structs needed to be able to call the stat function which checks for file presence 
   struct stat buffer;
-  /* leftover used in strtok_r to capture content after space, read_line is buffer that fgets writes to */
+
+  // leftover used in strtok_r to capture content after space, read_line is buffer that fgets writes to
   char *leftover, read_line[200];
 
-  /* file pointer for our dfc.conf file */
+  // file pointer for our dfc.conf file 
   FILE *config_file;
 
+  // check if conf file exists 
   if (stat (file_name, &buffer) != 0) {
     perror("Conf file doesn't exist: ");
     exit(-1);
   }
 
+  // check if conf file can be opened 
   config_file = fopen(file_name, "r");
   if (config_file == NULL) {
     perror("Opening conf file: ");
     exit(-1);
   }
 
-
+  // iterator value to keep track of what index to update in conf struct 
   int current_server;
   current_server = 0;
+
+  // another char pointer for strtok usage
   char *token;
   while (fgets (read_line,200, config_file) != NULL) {
-    /* Extract the address, port, server number information */
+    // Extract the address, port, server number information
     if(strstr(read_line, "Server") != NULL) {
       token = strtok(read_line, " ");
       token = strtok(NULL, " ");
-      strcpy(params->servers[current_server], token);
       token = strtok(NULL, ":");
+      // zero out buffer where we copy string to prevent weird ending chars resulting from uninitialized mem
+      memset(params->addresses[current_server], 0, sizeof(params->addresses[current_server]));
+      // remove potential newline character at end of extracted field
+      deleteSubstring(token, "\n");
       strcpy(params->addresses[current_server], token);
       token = strtok(NULL, ":");
+      memset(params->ports[current_server], 0, sizeof(params->ports[current_server]));
+      deleteSubstring(token, "\n");
       strcpy(params->ports[current_server], token);
       current_server++;
     }
 
-    /* Extract the user name field */
+    // Extract the user name field
     if(strstr(read_line, "Username") != NULL) {
       strtok_r(read_line, " ", &leftover);
       deleteSubstring(leftover, "\n");
       params->username = malloc(strlen(leftover)+1);
       strcpy(params->username,leftover);
     }
-    /* Extract the password name field */
+    // Extract the password name field
     if(strstr(read_line, "Password") != NULL) {
       strtok_r(read_line, " ", &leftover);
       deleteSubstring(leftover, "\n");
@@ -467,11 +473,8 @@ void parse_client_conf_file(struct ClientFileContent *params, char *file_name) {
   }
   fclose(config_file);
 }
-
-
-
 /*-------------------------------------------------------------------------------------------------------------------------------------------
- * deleteSubstring - this function is a helper function that is used to remove newline characters from the end of extracted strings
+ * COMPLETE - deleteSubstring - this function is a helper function that is used to remove newline characters from the end of extracted strings
  *------------------------------------------------------------------------------------------------------------------------------------------- */
 void deleteSubstring(char *original_string,const char *sub_string) {
   while( (original_string=strstr(original_string,sub_string)) )

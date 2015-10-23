@@ -16,7 +16,6 @@
 struct ClientFileContent {
   char *username;
   char *password;
-  char servers[10][1];
   char ports[10][10];
   char addresses[10][16];
 };
