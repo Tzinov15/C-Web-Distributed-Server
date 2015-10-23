@@ -276,13 +276,21 @@ void send_file (int first_server_number, int second_server_number, int portion_n
   total_bytes_written_to_second_server = 0;
   //printf("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
   //printf("This is the portion size of the file that we are about to read %zu\n", portion_size);
-  /*
   // Send the file message header to both servers, THEN start sending the body in chunks of 1024 bytes 
   if ( (send(server_one, message_header, strlen(message_header), 0)) == -1)
     printf("Error with sending the header to the first server");
   if ( (send(server_two, message_header, strlen(message_header), 0)) == -1)
     printf("Error with sending the header to the second server");
 
+  ssize_t first_server_message_size, second_server_message_size;
+  char first_server_message_buffer [1024], second_server_message_buffer [1024];
+  first_server_message_size = recv(server_one, first_server_message_buffer, 1024, 0);
+  second_server_message_size = recv(server_two, second_server_message_buffer, 1024, 0);
+  if (first_server_message_size != 0)
+    printf("Server #%d: %s\n",first_server_number,first_server_message_buffer );
+  if (second_server_message_size != 0)
+    printf("Server #%d: %s\n",second_server_number,second_server_message_buffer );
+  /*
   while (total_bytes_read_from_file != portion_size)
   {
     if (portion_size_copy > 1024) {
@@ -337,17 +345,12 @@ void send_file (int first_server_number, int second_server_number, int portion_n
       printf("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
     }
     //
-    first_server_message_size = recv(server_one, first_server_message_buffer, 1024, MSG_DONTWAIT);
-    second_server_message_size = recv(server_two, second_server_message_buffer, 1024, MSG_DONTWAIT);
-    if (first_server_message_size != 0)
-      printf("Server #%d: %s\n",first_server_number,first_server_message_buffer );
-    if (second_server_message_size != 0)
-      printf("Server #%d: %s\n",second_server_number,second_server_message_buffer );
       
   }
 */
-  //close(server_one);
-  //close(server_two);
+  sleep(3);
+  close(server_one);
+  close(server_two);
 
 }
 int create_socket_to_server(int server_number, struct ClientFileContent *params) {

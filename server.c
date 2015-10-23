@@ -243,21 +243,22 @@ void client_handler(int client, int port_number, struct Username_Passwords *name
   char incorrect_password_message[44] = "Invalid Username/Password. Please try again";
   incorrect_password_message[43] = '\0';
 
-  char success_message[25] = "File writing successful!";
-  success_message[24] = '\0';
+  char success_message[] = "File writing successful!";
+
+  char header_ack_message[] = "Recieved your header!!";
 
   memset(&client_message, 0, sizeof(client_message));
   memset(&body, 0, sizeof(body));
 
   printf("======================\n");
 
-  while (total_bytes_read != total_size) {
-    sleep(2);
+  //while (total_bytes_read != total_size) {
     read_size = recv(client, client_message, 1280, 0);
     total_bytes_read += read_size;
     printf("Just read this many bytes: %zu\n", read_size);
     printf("Total read bytes: %zu\n", total_bytes_read);
     printf("This is what I just read from the client: \n%s\n", client_message);
+    send(client, header_ack_message, sizeof(header_ack_message), 0);
     /*
        if ((parse_message_header(client_message, username,  password, file_name, &header_size, &body_size)) == 1) {
        printf("Just a header, no need to write to any file\n");
@@ -272,9 +273,9 @@ void client_handler(int client, int port_number, struct Username_Passwords *name
        printf("This is the total bytes read: %zu\n", total_bytes_read);
        printf("This is the total size of the portion %zu\n", total_size);
        }
-    //send(client, success_message, sizeof(success_message), 0);
+    send(client, success_message, sizeof(success_message), 0);
     */
-}
+//}
 }
 
 
