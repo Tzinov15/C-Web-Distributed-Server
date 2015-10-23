@@ -117,6 +117,7 @@ int handle_get (char *get_command, struct ClientFileContent *params, struct File
     printf("Portion 4: (portion number) %d (server number) %d\n", locations->portion_locations[3][0], locations->portion_locations[3][1]);
     if ( (check_locations_array(locations)) == 0) {
       printf("We have enough portions!! Time to start retreving actual file content!\n");
+      break;
     }
     else
       printf("Not enough portions yet...\n\n\n");
@@ -124,6 +125,8 @@ int handle_get (char *get_command, struct ClientFileContent *params, struct File
     sleep(2);
     close(server);
   }
+
+  printf("Yay we left the for loop!!!\n");
   return 0;
 }
 
