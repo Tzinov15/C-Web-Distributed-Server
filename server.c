@@ -60,7 +60,7 @@ int main(int argc, char ** argv)
 void parse_server_conf_file(struct Username_Passwords *name_password) {
 
   struct stat buffer;
-  
+
   /* This will always be our server conf file */
   char filename[9] = "dfs.conf";
   filename[8] = '\0';
@@ -81,7 +81,7 @@ void parse_server_conf_file(struct Username_Passwords *name_password) {
     perror("Opening conf file did not work: ");
     exit(-1);
   }
-  
+
   //printf("Server conf file succesfully opened!!\n");
 
   char *token;
@@ -94,15 +94,15 @@ void parse_server_conf_file(struct Username_Passwords *name_password) {
       //printf("Max number of users parsed, ignoring the rest\n");
       return;
     }
-      token = strtok(read_line, " ");
-      //printf("This should be our username: %s\n", token);
-      strcpy(name_password->username[counter], token);
-      token = strtok(NULL, " ");
+    token = strtok(read_line, " ");
+    //printf("This should be our username: %s\n", token);
+    strcpy(name_password->username[counter], token);
+    token = strtok(NULL, " ");
 
-      deleteSubstring(token, "\n");
-      //printf("This should be our password: %s\n", token);
-      strcpy(name_password->password[counter], token);
-      counter++;
+    deleteSubstring(token, "\n");
+    //printf("This should be our password: %s\n", token);
+    strcpy(name_password->password[counter], token);
+    counter++;
   }
 
 }
@@ -115,7 +115,7 @@ int validate_user(char *username, char *password, struct Username_Passwords *nam
   printf("    This is the username that was passed to me%s\n", username);
   printf("    This is the password that was passed to me%s\n", password);
 
-  
+
   int i;
   for (i = 0; i < MAX_USERS; i++)
   {
@@ -128,8 +128,8 @@ int validate_user(char *username, char *password, struct Username_Passwords *nam
       }
     }
   }
-printf("User and password did not match\n");
-return 1;
+  printf("User and password did not match\n");
+  return 1;
 }
 
 /*---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -180,7 +180,7 @@ void create_file_from_portion(char *file_name, char *body, int port_number, char
   memset(&directory_name, 0, sizeof(directory_name));
   char server_number_char[2];
   int server_number;
-  
+
   // Set up the filename by adding server number, a dot, and the original filename passed in
   server_number = port_number - 10000;
   sprintf(server_number_char, "%d", server_number);
@@ -202,7 +202,7 @@ void create_file_from_portion(char *file_name, char *body, int port_number, char
   strncat(full_dir_path, directory_name, strlen(directory_name));
   strncat(full_dir_path, "/", 1);
   strncat(full_dir_path, user_name, strlen(user_name));
-  
+
   // check for directory precesne
   struct stat st;
 
@@ -222,7 +222,7 @@ void create_file_from_portion(char *file_name, char *body, int port_number, char
   strncpy(full_file_path, full_dir_path, strlen(full_dir_path));
   strncat(full_file_path, "/", 1);
   strncat(full_file_path, new_file_name, strlen(new_file_name));
-  
+
   FILE *file_portion;
   file_portion=fopen(full_file_path, "w");
 
@@ -240,12 +240,11 @@ void client_handler(int client, int port_number, struct Username_Passwords *name
   int is_header;
   unsigned long header_size = 0, body_size = 0,  total_size = 1;
 
-  char incorrect_password_message[44] = "Invalid Username/Password. Please try again";
-  incorrect_password_message[43] = '\0';
+  char incorrect_password_message[] = "Invalid Username/Password. Please try again";
 
   char success_message[] = "File writing successful!";
 
-  char header_ack_message[] = "Recieved your header!!";
+  char header_ack_message[] = "Recieved your header!! User/Pass authorized!";
 
   memset(&client_message, 0, sizeof(client_message));
   memset(&body, 0, sizeof(body));
@@ -253,83 +252,86 @@ void client_handler(int client, int port_number, struct Username_Passwords *name
   printf("======================\n");
 
   read_size = recv(client, client_message, 1280, 0);
+  if ((parse_message_header(client_message, username,  password, file_name, &header_size, &body_size)) == 1) {
+    printf("Just a header, no need to write to any file\n");
+    if ( ((validate_user(username, password, name_password))) == 0) {
+      printf("Username and password match!!\n");
+      send(client, header_ack_message, sizeof(header_ack_message), 0);
+    }
+    else {
+      printf("Incorrect username name pass\n");
+      send(client, incorrect_password_message, sizeof(incorrect_password_message), 0);
+    }
+  }
+  else {
+    printf("Not the header, which is odd because it should be the header at this point \n");
+  }
   total_bytes_read += read_size;
   printf("Just read this many bytes: %zu\n", read_size);
   printf("Total read bytes: %zu\n", total_bytes_read);
-  printf("This is what I just read from the client: \n%s\n", client_message);
-  send(client, header_ack_message, sizeof(header_ack_message), 0);
   memset(&client_message, 0, sizeof(client_message));
 
-    while (total_bytes_read != total_size) {
-      read_size = recv(client, client_message, 1280, 0);
-      printf("Just read this many bytes: %zu\n", read_size);
-      printf("Total read bytes: %zu\n", total_bytes_read);
-  total_bytes_read += read_size;
-      printf("This is what I just read from the client: \n%s\n", client_message);
-      send(client, success_message, sizeof(success_message), 0);
-       /*if ((parse_message_header(client_message, username,  password, file_name, &header_size, &body_size)) == 1) {
-       printf("Just a header, no need to write to any file\n");
-       if ( ((validate_user(username, password, name_password))) == 0) {
-       printf("Username and password match!!\n");
-       }}
-       else 
-       create_file_from_portion(file_name, client_message, port_number, username);
+  while (total_bytes_read != total_size) {
+    sleep(1);
+    read_size = recv(client, client_message, 1280, 0);
+    printf("Just read this many bytes: %zu\n", read_size);
+    total_bytes_read += read_size;
+    printf("This is what I just read from the client: \n%s\n", client_message);
+    create_file_from_portion(file_name, client_message, port_number, username);
 
-       total_size = header_size + body_size;
-       memset(&client_message, 0, sizeof(client_message));
-       printf("This is the total bytes read: %zu\n", total_bytes_read);
-       printf("This is the total size of the portion %zu\n", total_size);
-       }
+    total_size = header_size + body_size;
+    memset(&client_message, 0, sizeof(client_message));
+    printf("This is the total bytes read: %zu\n", total_bytes_read);
+    printf("This is the total size of the portion %zu\n", total_size);
     send(client, success_message, sizeof(success_message), 0);
-    */
-}
-}
-
-
-/*----------------------------------------------------------------------------------------------
- * setup_socket - allocate and bind a server socket using TCP, then have it listen on the port
- *---------------------------------------------------------------------------------------------- */
-int setup_socket(int port_number, int max_clients)
-{
-  /* The data structure used to hold the address/port information of the server-side socket */
-  struct sockaddr_in server;
-
-  /* This will be the socket descriptor that will be returned from the socket() call */
-  int sock;
-
-  /* Socket family is INET (used for Internet sockets) */
-  server.sin_family = AF_INET;
-  /* Apply the htons command to convert byte ordering of port number into Network Byte Ordering (Big Endian) */
-  server.sin_port = htons(port_number);
-  /* Allow any IP address within the local configuration of the server to have access */
-  server.sin_addr.s_addr = INADDR_ANY;
-  /* Zero off remaining sockaddr_in structure so that it is the right size */
-  memset(server.sin_zero, '\0', sizeof(server.sin_zero));
-
-  /* Allocate the socket */
-  if ((sock = socket(AF_INET, SOCK_STREAM, 0)) == ERROR) {
-    perror("server socket: ");
-    exit(-1);
   }
-
-
-  /* Bind it to the right port and IP using the sockaddr_in structuer pointed to by &server */
-  if ((bind(sock, (struct sockaddr *)&server, sizeof(struct sockaddr_in))) == ERROR) {
-    perror("bind : ");
-    exit(-1);
-  }
-
-  /* Have the socket listen to a max number of max_clients connections on the given port */
-  if ((listen(sock, max_clients)) == ERROR) {
-    perror("Listen");
-    exit(-1);
-  }
-  return sock;
 }
-/*-------------------------------------------------------------------------------------------------------------------------------------------
- * deleteSubstring - this function is a helper function that is used when extracting the path that the client sends a GET request on
- *------------------------------------------------------------------------------------------------------------------------------------------- */
-void deleteSubstring(char *original_string,const char *sub_string) {
-  while( (original_string=strstr(original_string,sub_string)) )
-    memmove(original_string,original_string+strlen(sub_string),1+strlen(original_string+strlen(sub_string)));
-}
+
+
+  /*----------------------------------------------------------------------------------------------
+   * setup_socket - allocate and bind a server socket using TCP, then have it listen on the port
+   *---------------------------------------------------------------------------------------------- */
+  int setup_socket(int port_number, int max_clients)
+  {
+    /* The data structure used to hold the address/port information of the server-side socket */
+    struct sockaddr_in server;
+
+    /* This will be the socket descriptor that will be returned from the socket() call */
+    int sock;
+
+    /* Socket family is INET (used for Internet sockets) */
+    server.sin_family = AF_INET;
+    /* Apply the htons command to convert byte ordering of port number into Network Byte Ordering (Big Endian) */
+    server.sin_port = htons(port_number);
+    /* Allow any IP address within the local configuration of the server to have access */
+    server.sin_addr.s_addr = INADDR_ANY;
+    /* Zero off remaining sockaddr_in structure so that it is the right size */
+    memset(server.sin_zero, '\0', sizeof(server.sin_zero));
+
+    /* Allocate the socket */
+    if ((sock = socket(AF_INET, SOCK_STREAM, 0)) == ERROR) {
+      perror("server socket: ");
+      exit(-1);
+    }
+
+
+    /* Bind it to the right port and IP using the sockaddr_in structuer pointed to by &server */
+    if ((bind(sock, (struct sockaddr *)&server, sizeof(struct sockaddr_in))) == ERROR) {
+      perror("bind : ");
+      exit(-1);
+    }
+
+    /* Have the socket listen to a max number of max_clients connections on the given port */
+    if ((listen(sock, max_clients)) == ERROR) {
+      perror("Listen");
+      exit(-1);
+    }
+    return sock;
+  }
+  /*-------------------------------------------------------------------------------------------------------------------------------------------
+   * deleteSubstring - this function is a helper function that is used when extracting the path that the client sends a GET request on
+   *------------------------------------------------------------------------------------------------------------------------------------------- */
+  void deleteSubstring(char *original_string,const char *sub_string) {
+    while( (original_string=strstr(original_string,sub_string)) )
+      memmove(original_string,original_string+strlen(sub_string),1+strlen(original_string+strlen(sub_string)));
+  }
