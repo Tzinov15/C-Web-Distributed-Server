@@ -32,7 +32,7 @@ int main(int argc, char ** argv) {
     }
 
     if (strncmp(user_input, "GET", strlen("GET")) == 0) {
-      handle_get(user_input);
+      handle_get(user_input, &client_params, &destination_matrix);
     }
 
   }
@@ -46,7 +46,7 @@ int main(int argc, char ** argv) {
 /*-------------------------------------------------------------------------------------------------------
  * handle_get - this function will be responsible for downloading the selected file from the DFS servers
  *------------------------------------------------------------------------------------------------------- */
-int handle_get (char *get_command) {
+int handle_get (char *get_command, struct ClientFileContent *params, struct FileDistributionCombination *matrix){
 
   /* Structs needed to be able to call the stat function which checks for file presence */
   struct stat buffer;
@@ -56,7 +56,7 @@ int handle_get (char *get_command) {
   /*-----------------------------------
    * Error Checking / Input Validation
    *----------------------------------- */
-  /* Extract the second word from the PUT command (the filename) and strip it of newline character */
+  /* Extract the second word from the GET command (the filename) and strip it of newline character */
   strtok_r(get_command, " ", &file_name);
   if (file_name == NULL) {
     printf("You have not specified a file to download. Please try again...\n");
@@ -73,10 +73,13 @@ int handle_get (char *get_command) {
   /*------------------------
    * File Download Operations
    *------------------------*/
+  char message_header[256];
+  construct_put_header(file_name, params, message_header);
+  printf("This is our get request so far: \n%s\n",message_header );
   return 0;
 }
 /*-------------------------------------------------------------------------------------------------------
- * calculate_hash_modulo_value - this function will take in the file name, open the file, calculate the hash, extract the last byte, perform a modulo 4 operation on the decimal value of the last byte of the hash, return val
+ * COMPLETE - calculate_hash_modulo_value - this function will take in the file name, open the file, calculate hash, extract the last byte, perform a modulo 4 operation on the decimal value of the last byte of the hash, return val
  *------------------------------------------------------------------------------------------------------- */
 int calculate_hash_modulo_value(char * file_name)
 {
@@ -108,11 +111,9 @@ int calculate_hash_modulo_value(char * file_name)
   //printf("    This is the last byte of the hash value in hex: %02x and in decimal: %d and in modulo 4: %d\n", c[15], last_hex_byte, hash_modulo_4);
   fclose(users_file);
   return hash_modulo_4;
-
 }
-
 /*-------------------------------------------------------------------------------------------------------
- * handle_put - this function will be responsible for uploading all the files available on the DFS servers
+ * COMPLETE - handle_put - this function will be responsible for uploading all the files available on the DFS servers
  *------------------------------------------------------------------------------------------------------- */
 int handle_put (char *put_command, struct ClientFileContent *params, struct FileDistributionCombination *matrix){
   // Structs needed to be able to call the stat function for file information
@@ -146,13 +147,6 @@ int handle_put (char *put_command, struct ClientFileContent *params, struct File
     perror("Opening user file: ");
     return 1;
   }
-
-  /*------------------------
-   * File Consruction Operations
-   *------------------------*/
-
-
-
   char generic_filename [] = "%s.%d";
 
   // Construct filename for first portion of original file 
@@ -175,8 +169,6 @@ int handle_put (char *put_command, struct ClientFileContent *params, struct File
   memset(&portion_four_filename, 0, sizeof(portion_four_filename));
   snprintf(portion_four_filename, sizeof(portion_four_filename), generic_filename, file_name, 4);
 
-
-
   ssize_t file_size, file_size_copy;
   ssize_t portion_one_size, portion_two_size, portion_three_size, portion_four_size;
 
@@ -195,7 +187,6 @@ int handle_put (char *put_command, struct ClientFileContent *params, struct File
   file_size_copy -= portion_one_size;
 
   portion_four_size = file_size_copy;
-
 
   // Array that will store all the mappings of portion number -> server number based on the modulo value of the hash
   int server_location_array[8];
@@ -240,12 +231,11 @@ int handle_put (char *put_command, struct ClientFileContent *params, struct File
   // This will call the send_file command which will send portion four to the servers designated to receive portion four
   send_file(server_location_array[6], server_location_array[7], 4, portion_four_size, users_file, params, portion_four_filename);
 
-
   return 0;
-
 }
-
-
+/*-------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ * COMPLETE - send_file - this function will actually open up the correct sockets, send the header, and implement the send, receive ack, send again setup with the server
+ *---------------------------------------------------------------------------------------------------------------------------------------------------------------------- */
 void send_file (int first_server_number, int second_server_number, int portion_number, ssize_t portion_size, FILE *user_file, struct ClientFileContent *params, char *portion_file_name) {
 
   // set up the size variables that will hold the return values of all the calls to fread and send
@@ -347,6 +337,9 @@ void send_file (int first_server_number, int second_server_number, int portion_n
   close(server_two);
 
 }
+/*-----------------------------------------------------------------------------------------------------------------------------------------------------------
+ * COMPLTE - create_socket_to_server - this function is responsible for creating a socket connection using the passed in server number and conf sturct
+ *---------------------------------------------------------------------------------------------------------------------------------------------------------- */
 int create_socket_to_server(int server_number, struct ClientFileContent *params) {
   //printf("||>> Hello from create_socket_to_server\n");
   int sock;
@@ -371,10 +364,8 @@ int create_socket_to_server(int server_number, struct ClientFileContent *params)
     printf("    connected\n");
   return sock;
 }
-
-
 /*-----------------------------------------------------------------------------------------------------------------------------------------------------------
- * construct_put_message - this function is responsible for assembling the full message that we send to the server which includes header fields and the body 
+ * COMPLTE - construct_put_message - this function is responsible for assembling the full message that we send to the server which includes header fields and the body 
  *---------------------------------------------------------------------------------------------------------------------------------------------------------- */
 void construct_put_header(char *filename, char *filesize, struct ClientFileContent *params, char *header) 
 {
@@ -388,7 +379,20 @@ void construct_put_header(char *filename, char *filesize, struct ClientFileConte
   strcat(header, params->password);
   strcat(header, "\n");
 }
-
+/*-----------------------------------------------------------------------------------------------------------------------------------------------------------
+ * construct_get_message - this function is responsible for assembling the full message that we send to the server which includes header fields and the body 
+ *---------------------------------------------------------------------------------------------------------------------------------------------------------- */
+void construct_get_header(char *filename, struct ClientFileContent *params, char *header) 
+{
+  strcpy(header, "&**&STXGET");
+  strcat(header, filename);
+  strcat(header, " ");
+  strcat(header, "\n");
+  strcat(header, params->username);
+  strcat(header, "\n");
+  strcat(header, params->password);
+  strcat(header, "\n");
+}
 /*-------------------------------------------------------------------------------------------------------
  * handle_list - this function will be responsible for listing all the files available on the DFS servers
  *------------------------------------------------------------------------------------------------------- */
