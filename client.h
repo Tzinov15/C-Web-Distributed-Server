@@ -41,10 +41,14 @@ static struct FileDistributionCombination destination_matrix = {
 void send_file (int first_server_number, int second_server_number, int portion_number, ssize_t portion_size, FILE *user_file, struct ClientFileContent *params, char *portion_file_name);
 int create_socket_to_server(int server_number, struct ClientFileContent *params);
 void send_to_server(char *message, int server_number, struct ClientFileContent *params);
+
 void construct_put_header(char *filename, char *filesize, struct ClientFileContent *params, char *header);
+void construct_get_header(char *filename, struct ClientFileContent *params, char *header);
+void construct_list_header(struct ClientFileContent *params, char *header);
+
 void deleteSubstring(char *original_string,const char *sub_string);
 void parse_client_conf_file(struct ClientFileContent *params, char *file_name);
-int handle_get (char *get_command);
-int handle_put (char *put_command, struct ClientFileContent *params, struct FileDistributionCombination *matrix );
-void handle_list ();
+int handle_get (char *get_command, struct ClientFileContent *params, struct FileDistributionCombination *matrix);
+int handle_put (char *put_command, struct ClientFileContent *params, struct FileDistributionCombination *matrix);
+int handle_list (char *list_command, struct ClientFileContent *params, struct FileDistributionCombination *matrix);
 

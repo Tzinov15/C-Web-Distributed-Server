@@ -135,30 +135,47 @@ int validate_user(char *username, char *password, struct Username_Passwords *nam
 /*---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  * parse_request - this function will be responsible for taking in the request from the client, parsing out the elements of the body and header, then populating the respective stirngs that were passed in
  *--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- */
-int parse_message_header(char *file_content, char *username, char *password, char *file_name, unsigned long *header_size, unsigned long *body_size) {
+int parse_message_header(char *file_content, char *username, char *password, char *file_name, unsigned long *header_size, unsigned long *body_size, char *method) {
   printf("||>> Hello from parse_request\n");
-  char header_start_string[8];
+  char header_start_string[11];
   char *ptr;
-  strncpy(header_start_string, file_content, 7);
-  header_start_string[7] = '\0';
+
+  char *backup_first_line_left_over;
+  char backup_first_line[256];
+  memset(&backup_first_line, 0, sizeof(backup_first_line));
+  char *file_size_token;
+  char *token;
+  char *new_token;
+  char *header_left_over;
+  char *second_token;
+  strncpy(header_start_string, file_content, 10);
+  header_start_string[10] = '\0';
   if ( (strncmp(header_start_string, "&**&STX", 7)) == 0) {
-    char *token;
-    char *new_token;
-    char *header_left_over;
-    char *second_token;
     printf("  Header Request!!\n\n");
     *header_size = strlen(file_content);
     token = strtok_r(file_content, "\n", &header_left_over);
+    strncpy(backup_first_line, token, strlen(token));
     second_token = strtok(token, " ");
     second_token = strtok(NULL, " ");
     strcpy(file_name, second_token);
-    second_token = strtok(NULL, " ");
-    *body_size = strtoul(second_token, &ptr, 10);
     new_token = strtok(header_left_over, "\n");
     strcpy(username, new_token);
     new_token = strtok(NULL, "\n");
     strcpy(password, new_token);
-    return 1;
+    if ( (strncmp(header_start_string, "&**&STXPUT", 10)) == 0) {
+      printf("  PUT request\n");
+      file_size_token = strtok_r(backup_first_line, " ", &backup_first_line_left_over);
+      file_size_token = strtok(backup_first_line_left_over, " ");
+      file_size_token = strtok(NULL, " ");
+      *body_size = strtoul(file_size_token, &ptr, 10);
+      strcpy(method, "PUT");
+      return 1;
+    }
+    if ( (strncmp(header_start_string, "&**&STXGET", 10)) == 0) {
+      printf("  GET request\n");
+      strcpy(method, "GET");
+      return 1;
+    }
 
   }
   else {
@@ -184,7 +201,8 @@ void create_file_from_portion(char *file_name, char *body, int port_number, char
   // Set up the filename by adding server number, a dot, and the original filename passed in
   server_number = port_number - 10000;
   sprintf(server_number_char, "%d", server_number);
-  strncpy(new_file_name, server_number_char, 2);
+  strncpy(new_file_name, ".", 1);
+  strncat(new_file_name, server_number_char, 2);
   strncat(new_file_name, ".", 1);
   strncat(new_file_name, file_name, strlen(file_name));
 
@@ -227,8 +245,6 @@ void create_file_from_portion(char *file_name, char *body, int port_number, char
   file_portion=fopen(full_file_path, "a");
 
   fwrite(body, 1, strlen(body), file_portion);
-
-
 }
 /*----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  * client_handler - this is the function that gets first called by the child (client) process. It receives the initial request and proceeds onward with error handling, parsing, and file serving
@@ -241,19 +257,25 @@ void client_handler(int client, int port_number, struct Username_Passwords *name
   unsigned long header_size = 0, body_size = 0,  total_size = 1;
 
   char incorrect_password_message[] = "Invalid Username/Password. Please try again";
-
   char success_message[] = "File writing successful!";
-
   char header_ack_message[] = "Recieved your header!! User/Pass authorized!";
+  char get_response_message[] = "Your file has been retreived";
+  char request_method[5];
+  memset(&request_method, 0, sizeof(request_method));
+  // this array of strings wilh hold the path locations of file poritons 1-4
+  char portion_locations[4][256];
 
   memset(&client_message, 0, sizeof(client_message));
   memset(&body, 0, sizeof(body));
 
   printf("======================\n");
-
   read_size = recv(client, client_message, 1280, 0);
-  if ((parse_message_header(client_message, username,  password, file_name, &header_size, &body_size)) == 1) {
+  if ((parse_message_header(client_message, username,  password, file_name, &header_size, &body_size, (char *)&request_method)) == 1) {
     printf("Just a header, no need to write to any file\n");
+    printf("This was the method extracted from the header: %s\n", request_method);
+    printf("This was the username extracted from the header: %s\n", username);
+    printf("This was the password extracted from the header: %s\n", password);
+    printf("This was the filename extracted from the header: %s\n", file_name);
     if ( ((validate_user(username, password, name_password))) == 0) {
       printf("Username and password match!!\n");
       send(client, header_ack_message, sizeof(header_ack_message), 0);
@@ -265,6 +287,37 @@ void client_handler(int client, int port_number, struct Username_Passwords *name
   }
   else {
     printf("Not the header, which is odd because it should be the header at this point \n");
+  }
+  if (strncmp(request_method, "GET", 3) == 0)
+  {
+    printf("We have a GET request that we need to deal with!!\n");
+    char generic_dfs_folder_name [] = "%s/%s/";
+
+    char dfs1_path[sizeof(generic_dfs_folder_name) + 64];
+    memset(&dfs1_path, 0, sizeof(dfs1_path));
+    snprintf(dfs1_path, sizeof(dfs1_path), generic_dfs_folder_name, "DFS1", username);
+
+    char dfs2_path[sizeof(generic_dfs_folder_name) + 64];
+    memset(&dfs2_path, 0, sizeof(dfs2_path));
+    snprintf(dfs2_path, sizeof(dfs2_path), generic_dfs_folder_name, "DFS2", username);
+
+    char dfs3_path[sizeof(generic_dfs_folder_name) + 64];
+    memset(&dfs3_path, 0, sizeof(dfs3_path));
+    snprintf(dfs3_path, sizeof(dfs3_path), generic_dfs_folder_name, "DFS3", username);
+
+    char dfs4_path[sizeof(generic_dfs_folder_name) + 64];
+    memset(&dfs4_path, 0, sizeof(dfs4_path));
+    snprintf(dfs4_path, sizeof(dfs4_path), generic_dfs_folder_name, "DFS4", username);
+
+    find_file_portions(file_name, portion_locations, dfs1_path);
+    send(client, get_response_message, sizeof(get_response_message), 0);
+    return;
+
+  }
+  if (strncmp(request_method, "PUT", 3) == 0)
+  {
+    printf("We have a PUT request that we need to deal with!!\n");
+
   }
   total_bytes_read += read_size;
   printf("Just read this many bytes: %zu\n", read_size);
@@ -285,52 +338,82 @@ void client_handler(int client, int port_number, struct Username_Passwords *name
     send(client, success_message, sizeof(success_message), 0);
   }
 }
+void find_file_portions(char *file_name, char **locations_array, char *directory_path)
+{
+  DIR *dp;
+  struct dirent *ep;
+  char complete_portion_file_path[strlen(directory_path) + 128];
+  memset(&complete_portion_file_path, 0, sizeof(complete_portion_file_path));
 
-
-  /*----------------------------------------------------------------------------------------------
-   * setup_socket - allocate and bind a server socket using TCP, then have it listen on the port
-   *---------------------------------------------------------------------------------------------- */
-  int setup_socket(int port_number, int max_clients)
+  dp = opendir (directory_path);
+  if (dp != NULL)
   {
-    /* The data structure used to hold the address/port information of the server-side socket */
-    struct sockaddr_in server;
-
-    /* This will be the socket descriptor that will be returned from the socket() call */
-    int sock;
-
-    /* Socket family is INET (used for Internet sockets) */
-    server.sin_family = AF_INET;
-    /* Apply the htons command to convert byte ordering of port number into Network Byte Ordering (Big Endian) */
-    server.sin_port = htons(port_number);
-    /* Allow any IP address within the local configuration of the server to have access */
-    server.sin_addr.s_addr = INADDR_ANY;
-    /* Zero off remaining sockaddr_in structure so that it is the right size */
-    memset(server.sin_zero, '\0', sizeof(server.sin_zero));
-
-    /* Allocate the socket */
-    if ((sock = socket(AF_INET, SOCK_STREAM, 0)) == ERROR) {
-      perror("server socket: ");
-      exit(-1);
-    }
-
-
-    /* Bind it to the right port and IP using the sockaddr_in structuer pointed to by &server */
-    if ((bind(sock, (struct sockaddr *)&server, sizeof(struct sockaddr_in))) == ERROR) {
-      perror("bind : ");
-      exit(-1);
-    }
-
-    /* Have the socket listen to a max number of max_clients connections on the given port */
-    if ((listen(sock, max_clients)) == ERROR) {
-      perror("Listen");
-      exit(-1);
-    }
-    return sock;
+    while ( (ep = readdir (dp)) ) {
+      puts (ep->d_name);
+      if ( (strstr(ep->d_name, file_name)) != NULL)
+      {
+        printf("We have a match on the files!!\n");
+        printf("This is the last character of the file name: %c\n", ep->d_name[strlen(ep->d_name)-1]);
+        printf("This is the interger version of the file portion (extracted from the last character of the file name%d\n", atoi(&ep->d_name[strlen(ep->d_name)-1]));
+        printf("This is the second character of the file name: %c\n", ep->d_name[1]);
+        strncpy(complete_portion_file_path, directory_path, strlen(directory_path));
+        strncat(complete_portion_file_path, ep->d_name, strlen(ep->d_name));
+        printf("This should be our complete file path for the portion: %s\n", complete_portion_file_path);
+        strncpy(locations_array[atoi(&ep->d_name[strlen(ep->d_name)-1])], complete_portion_file_path, strlen(complete_portion_file_path));
+        memset(&complete_portion_file_path, 0, sizeof(complete_portion_file_path));
+      }
+    } 
+    (void) closedir (dp);
   }
-  /*-------------------------------------------------------------------------------------------------------------------------------------------
-   * deleteSubstring - this function is a helper function that is used when extracting the path that the client sends a GET request on
-   *------------------------------------------------------------------------------------------------------------------------------------------- */
-  void deleteSubstring(char *original_string,const char *sub_string) {
-    while( (original_string=strstr(original_string,sub_string)) )
-      memmove(original_string,original_string+strlen(sub_string),1+strlen(original_string+strlen(sub_string)));
+  else
+    perror ("Couldn't open the directory");
+
+}
+
+/*----------------------------------------------------------------------------------------------
+ * setup_socket - allocate and bind a server socket using TCP, then have it listen on the port
+ *---------------------------------------------------------------------------------------------- */
+int setup_socket(int port_number, int max_clients)
+{
+  /* The data structure used to hold the address/port information of the server-side socket */
+  struct sockaddr_in server;
+
+  /* This will be the socket descriptor that will be returned from the socket() call */
+  int sock;
+
+  /* Socket family is INET (used for Internet sockets) */
+  server.sin_family = AF_INET;
+  /* Apply the htons command to convert byte ordering of port number into Network Byte Ordering (Big Endian) */
+  server.sin_port = htons(port_number);
+  /* Allow any IP address within the local configuration of the server to have access */
+  server.sin_addr.s_addr = INADDR_ANY;
+  /* Zero off remaining sockaddr_in structure so that it is the right size */
+  memset(server.sin_zero, '\0', sizeof(server.sin_zero));
+
+  /* Allocate the socket */
+  if ((sock = socket(AF_INET, SOCK_STREAM, 0)) == ERROR) {
+    perror("server socket: ");
+    exit(-1);
   }
+
+
+  /* Bind it to the right port and IP using the sockaddr_in structuer pointed to by &server */
+  if ((bind(sock, (struct sockaddr *)&server, sizeof(struct sockaddr_in))) == ERROR) {
+    perror("bind : ");
+    exit(-1);
+  }
+
+  /* Have the socket listen to a max number of max_clients connections on the given port */
+  if ((listen(sock, max_clients)) == ERROR) {
+    perror("Listen");
+    exit(-1);
+  }
+  return sock;
+}
+/*-------------------------------------------------------------------------------------------------------------------------------------------
+ * deleteSubstring - this function is a helper function that is used when extracting the path that the client sends a GET request on
+ *------------------------------------------------------------------------------------------------------------------------------------------- */
+void deleteSubstring(char *original_string,const char *sub_string) {
+  while( (original_string=strstr(original_string,sub_string)) )
+    memmove(original_string,original_string+strlen(sub_string),1+strlen(original_string+strlen(sub_string)));
+}

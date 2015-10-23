@@ -25,7 +25,7 @@ int main(int argc, char ** argv) {
       break;
     }
     if (strncmp(user_input, "LIST", strlen("LIST")) == 0) {
-      handle_list();
+      handle_list(user_input, &client_params, &destination_matrix);
     }
     if (strncmp(user_input, "PUT", strlen("PUT")) == 0) {
       handle_put(user_input, &client_params, &destination_matrix);
@@ -73,9 +73,22 @@ int handle_get (char *get_command, struct ClientFileContent *params, struct File
   /*------------------------
    * File Download Operations
    *------------------------*/
+  ssize_t server_message_size;
   char message_header[256];
-  construct_put_header(file_name, params, message_header);
+  char server_message_buffer[1024];
+  construct_get_header(file_name, params, message_header);
   printf("This is our get request so far: \n%s\n",message_header );
+
+  int server;
+  server = create_socket_to_server(1, params);
+  if ( (send(server, message_header, strlen(message_header), 0)) == -1)
+    printf("Error with sending the header to the first server");
+
+  server_message_size = recv(server, server_message_buffer, 1024, 0);
+  printf("Server: %s\n",server_message_buffer );
+  
+  close(server);
+
   return 0;
 }
 /*-------------------------------------------------------------------------------------------------------
@@ -335,7 +348,6 @@ void send_file (int first_server_number, int second_server_number, int portion_n
   printf("All done with sending from client\n");
   close(server_one);
   close(server_two);
-
 }
 /*-----------------------------------------------------------------------------------------------------------------------------------------------------------
  * COMPLTE - create_socket_to_server - this function is responsible for creating a socket connection using the passed in server number and conf sturct
@@ -364,9 +376,9 @@ int create_socket_to_server(int server_number, struct ClientFileContent *params)
     printf("    connected\n");
   return sock;
 }
-/*-----------------------------------------------------------------------------------------------------------------------------------------------------------
- * COMPLTE - construct_put_message - this function is responsible for assembling the full message that we send to the server which includes header fields and the body 
- *---------------------------------------------------------------------------------------------------------------------------------------------------------- */
+/*-------------------------------------------------------------------------------------------
+ * COMPLETE - construct_put_header - this function is responsible for assembling the put request header
+ *-------------------------------------------------------------------------------------------*/
 void construct_put_header(char *filename, char *filesize, struct ClientFileContent *params, char *header) 
 {
   strcpy(header, "&**&STXPUT ");
@@ -379,14 +391,25 @@ void construct_put_header(char *filename, char *filesize, struct ClientFileConte
   strcat(header, params->password);
   strcat(header, "\n");
 }
-/*-----------------------------------------------------------------------------------------------------------------------------------------------------------
- * construct_get_message - this function is responsible for assembling the full message that we send to the server which includes header fields and the body 
- *---------------------------------------------------------------------------------------------------------------------------------------------------------- */
+/*-------------------------------------------------------------------------------------------
+ * construct_get_header - this function is responsible for assembling the put request header
+ *-------------------------------------------------------------------------------------------*/
 void construct_get_header(char *filename, struct ClientFileContent *params, char *header) 
 {
-  strcpy(header, "&**&STXGET");
+  strcpy(header, "&**&STXGET ");
   strcat(header, filename);
-  strcat(header, " ");
+  strcat(header, "\n");
+  strcat(header, params->username);
+  strcat(header, "\n");
+  strcat(header, params->password);
+  strcat(header, "\n");
+}
+/*-------------------------------------------------------------------------------------------
+ * construct_list_header - this function is responsible for assembling the put request header
+ *-------------------------------------------------------------------------------------------*/
+void construct_list_header(struct ClientFileContent *params, char *header) 
+{
+  strcpy(header, "&**&STXLIST ");
   strcat(header, "\n");
   strcat(header, params->username);
   strcat(header, "\n");
@@ -396,7 +419,7 @@ void construct_get_header(char *filename, struct ClientFileContent *params, char
 /*-------------------------------------------------------------------------------------------------------
  * handle_list - this function will be responsible for listing all the files available on the DFS servers
  *------------------------------------------------------------------------------------------------------- */
-void handle_list () {
+int handle_list (char *get_command, struct ClientFileContent *params, struct FileDistributionCombination *matrix){
   printf("Hello form handle_list\n");
   printf("1.txt \n 2.txt \n 3.txt");
 }
