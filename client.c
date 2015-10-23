@@ -73,10 +73,14 @@ int handle_get (char *get_command, struct ClientFileContent *params, struct File
   /*------------------------
    * File Download Operations
    *------------------------*/
-  ssize_t server_message_size;
+  ssize_t server_header_ack_size;
+  char server_header_ack_buffer[64];
+
   char message_pn_header[256];
   char recv_pn_response_ack[] = "Received the PNs!";
+  char thumbs_up_ack[] = "I'm ready for the PNs!";
   char server_message_buffer[1024];
+  ssize_t server_message_size;
   construct_getpn_header(file_name, params, message_pn_header);
   printf("This is our get request so far: \n%s\n",message_pn_header );
 
@@ -89,12 +93,15 @@ int handle_get (char *get_command, struct ClientFileContent *params, struct File
     if ( (send(server, message_pn_header, strlen(message_pn_header), 0)) == -1)
       printf("Error with sending the header to the first server");
 
-    server_message_size = recv(server, server_message_buffer, 1024, 0);
-    printf("Server: %s\n",server_message_buffer );
-    memset(&server_message_buffer, 0, sizeof(server_message_buffer));
+    server_header_ack_size = recv(server, server_header_ack_buffer, 1024, 0);
+    printf("Server: %s\n",server_header_ack_buffer );
+
+    if ( (send(server, thumbs_up_ack, strlen(thumbs_up_ack), 0)) == -1)
+      printf("Error with sending the thumbs up ack to the server");
 
     server_message_size = recv(server, server_message_buffer, 1024, 0);
     printf("Server: %s\n",server_message_buffer );
+    //update_locations_array(server_message_buffer);
     if ( (send(server, recv_pn_response_ack, strlen(recv_pn_response_ack), 0)) == -1)
       printf("Error with sending the ack to the server");
     memset(&server_message_buffer, 0, sizeof(server_message_buffer));
@@ -103,6 +110,10 @@ int handle_get (char *get_command, struct ClientFileContent *params, struct File
 
   return 0;
 }
+
+
+
+//void update_locations_array(char *server_message)
 /*-------------------------------------------------------------------------------------------------------
  * COMPLETE - calculate_hash_modulo_value - this function will take in the file name, open the file, calculate hash, extract the last byte, perform a modulo 4 operation on the decimal value of the last byte of the hash, return val
  *------------------------------------------------------------------------------------------------------- */

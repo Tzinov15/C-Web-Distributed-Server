@@ -54,7 +54,7 @@ struct TextfileData {
 };
 
 /* Function Declarations */
-void find_file_portions(char *file_name, char *directory_path, struct FilePortionLocations *locations);
+int * find_file_portions(char *file_name,  char *directory_path, struct FilePortionLocations *locations);
 void parse_server_conf_file(struct Username_Passwords *name_password);
 void deleteSubstring(char *original_string,const char *sub_string);
 int setup_socket (int port_number, int max_clients);

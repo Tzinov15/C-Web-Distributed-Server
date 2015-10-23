@@ -306,29 +306,53 @@ void client_handler(int client, int port_number, struct Username_Passwords *name
   }
   if (strncmp(request_method, "GETPN", 5) == 0)
   {
-    printf("Hello from the getpn handler from the server\n");
+    printf("Hello from the getpn handler from the server. Waiting for ack from client so that we can start sendig...\n");
+
+    char client_ready_for_pns_message_buffer[64];
+    ssize_t client_ready_for_pns_size;
+    client_ready_for_pns_size = recv(client, client_ready_for_pns_message_buffer, 64, 0);
+    printf("Client: %s\n", client_ready_for_pns_message_buffer);
+    char server_name[8];
+    memset(&server_name, 0, sizeof(server_name));
+    strncpy(server_name, "DFS", 3);
+    int server_number;
+    server_number = port_number - 10000;
+    char server_number_char[2];
+    sprintf(server_number_char, "%d", server_number);
+    strncat(server_name, server_number_char, 2);
+
+    int *portion_numbers;
+    char generic_dfs_folder_name [] = "%s/%s/";
+    char dfs_path[sizeof(generic_dfs_folder_name) + 64];
+    memset(&dfs_path, 0, sizeof(dfs_path));
+    snprintf(dfs_path, sizeof(dfs_path), generic_dfs_folder_name, server_name, username);
+    portion_numbers = find_file_portions(file_name, dfs_path, locations);
+    int j = 0;
+    for (j = 0; j < 2; j++)
+    {
+      printf("These are the portion numbers extract from server %d: %d\n", port_number, *(portion_numbers+j));
+    }
     send(client, getpn_response_message, sizeof(getpn_response_message), 0);
     client_ack_size = recv(client, client_ack_message_buffer, 64, 0);
-    printf("This is the ack from the client: %s\n", client_ack_message_buffer);
+    printf("Client: %s\n", client_ack_message_buffer);
     return;
   }
   if (strncmp(request_method, "GET", 3) == 0)
   {
+    char server_name[8];
+    char generic_dfs_folder_name [] = "%s/%s/";
+    char dfs_path[sizeof(generic_dfs_folder_name) + 64];
+    memset(&dfs_path, 0, sizeof(dfs_path));
+    snprintf(dfs_path, sizeof(dfs_path), generic_dfs_folder_name, server_name, username);
     int i, server_number;
     server_number = port_number - 10000;
     char server_number_char[2];
     sprintf(server_number_char, "%d", server_number);
 
-    char server_name[8];
     memset(&server_name, 0, sizeof(server_name));
     strncpy(server_name, "DFS", 3);
     strncat(server_name, server_number_char, 2);
     printf("We have a GET request that we need to deal with!!\n");
-    char generic_dfs_folder_name [] = "%s/%s/";
-
-    char dfs_path[sizeof(generic_dfs_folder_name) + 64];
-    memset(&dfs_path, 0, sizeof(dfs_path));
-    snprintf(dfs_path, sizeof(dfs_path), generic_dfs_folder_name, server_name, username);
 
     find_file_portions(file_name, dfs_path, locations);
     /*if ( (are_file_portions_ready) == 0) {
@@ -380,13 +404,15 @@ int are_file_portions_ready (struct FilePortionLocations *locations) {
 }
 
 
-void find_file_portions(char *file_name,  char *directory_path, struct FilePortionLocations *locations)
+int * find_file_portions(char *file_name,  char *directory_path, struct FilePortionLocations *locations)
 {
   DIR *dp;
   struct dirent *ep;
   char complete_portion_file_path[strlen(directory_path) + 128];
   int file_portion_number;
+  static int pns[2];
   memset(&complete_portion_file_path, 0, sizeof(complete_portion_file_path));
+  int i = 0;
 
   dp = opendir (directory_path);
   if (dp != NULL)
@@ -398,6 +424,8 @@ void find_file_portions(char *file_name,  char *directory_path, struct FilePorti
         printf("We have a match on the files!!\n");
         printf("This is the interger version of the file portion (extracted from the last character of the file name%d\n", atoi(&ep->d_name[strlen(ep->d_name)-1]));
         file_portion_number = atoi(&ep->d_name[strlen(ep->d_name)-1]);
+        pns[i] = file_portion_number;
+        i++;
         strncpy(complete_portion_file_path, directory_path, strlen(directory_path));
         strncat(complete_portion_file_path, ep->d_name, strlen(ep->d_name));
         printf("This should be our complete file path for the portion: %s\n", complete_portion_file_path);
@@ -409,7 +437,9 @@ void find_file_portions(char *file_name,  char *directory_path, struct FilePorti
   }
   else
     perror ("Couldn't open the directory");
-printf("done with parsign the directory...\n");
+  printf("done with parsign the directory...\n");
+
+  return pns;
 }
 
 /*----------------------------------------------------------------------------------------------
