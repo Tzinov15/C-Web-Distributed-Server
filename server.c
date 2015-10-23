@@ -252,15 +252,22 @@ void client_handler(int client, int port_number, struct Username_Passwords *name
 
   printf("======================\n");
 
-  //while (total_bytes_read != total_size) {
-    read_size = recv(client, client_message, 1280, 0);
-    total_bytes_read += read_size;
-    printf("Just read this many bytes: %zu\n", read_size);
-    printf("Total read bytes: %zu\n", total_bytes_read);
-    printf("This is what I just read from the client: \n%s\n", client_message);
-    send(client, header_ack_message, sizeof(header_ack_message), 0);
-    /*
-       if ((parse_message_header(client_message, username,  password, file_name, &header_size, &body_size)) == 1) {
+  read_size = recv(client, client_message, 1280, 0);
+  total_bytes_read += read_size;
+  printf("Just read this many bytes: %zu\n", read_size);
+  printf("Total read bytes: %zu\n", total_bytes_read);
+  printf("This is what I just read from the client: \n%s\n", client_message);
+  send(client, header_ack_message, sizeof(header_ack_message), 0);
+  memset(&client_message, 0, sizeof(client_message));
+
+    while (total_bytes_read != total_size) {
+      read_size = recv(client, client_message, 1280, 0);
+      printf("Just read this many bytes: %zu\n", read_size);
+      printf("Total read bytes: %zu\n", total_bytes_read);
+  total_bytes_read += read_size;
+      printf("This is what I just read from the client: \n%s\n", client_message);
+      send(client, success_message, sizeof(success_message), 0);
+       /*if ((parse_message_header(client_message, username,  password, file_name, &header_size, &body_size)) == 1) {
        printf("Just a header, no need to write to any file\n");
        if ( ((validate_user(username, password, name_password))) == 0) {
        printf("Username and password match!!\n");
@@ -275,7 +282,7 @@ void client_handler(int client, int port_number, struct Username_Passwords *name
        }
     send(client, success_message, sizeof(success_message), 0);
     */
-//}
+}
 }
 
 

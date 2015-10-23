@@ -290,7 +290,8 @@ void send_file (int first_server_number, int second_server_number, int portion_n
     printf("Server #%d: %s\n",first_server_number,first_server_message_buffer );
   if (second_server_message_size != 0)
     printf("Server #%d: %s\n",second_server_number,second_server_message_buffer );
-  /*
+  memset(&first_server_message_buffer, 0, sizeof(first_server_message_buffer));
+  memset(&second_server_message_buffer, 0, sizeof(second_server_message_buffer));
   while (total_bytes_read_from_file != portion_size)
   {
     if (portion_size_copy > 1024) {
@@ -329,7 +330,6 @@ void send_file (int first_server_number, int second_server_number, int portion_n
       printf("This is what was read from the file:\n%s\n", data_buffer);
       memcpy(&data_buffer_server_two, &data_buffer, sizeof(data_buffer_server_two));
       printf("This is how many bytes were read from the file %zu bytes\n", bytes_read_from_file);
-      printf("and this is what was copied to the second buffer:\n%s\n", data_buffer_server_two);
       total_bytes_read_from_file += bytes_read_from_file;
       bytes_written_to_first_server = send(server_one, data_buffer, bytes_read_from_file, 0);
       bytes_written_to_second_server = send(server_two, data_buffer_server_two, bytes_read_from_file, 0);
@@ -344,11 +344,17 @@ void send_file (int first_server_number, int second_server_number, int portion_n
       printf("This is how many bytes have been written total to server %d: %zu and to server %d:%zu\n", first_server_number, total_bytes_written_to_first_server, second_server_number, total_bytes_written_to_second_server);
       printf("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
     }
+    first_server_message_size = recv(server_one, first_server_message_buffer, 1024, 0);
+    second_server_message_size = recv(server_two, second_server_message_buffer, 1024, 0);
+    if (first_server_message_size != 0)
+      printf("Server #%d: %s\n",first_server_number,first_server_message_buffer );
+    if (second_server_message_size != 0)
+      printf("Server #%d: %s\n",second_server_number,second_server_message_buffer );
     //
       
   }
-*/
-  sleep(3);
+printf("All done with sending from client\n");
+  sleep(30);
   close(server_one);
   close(server_two);
 
