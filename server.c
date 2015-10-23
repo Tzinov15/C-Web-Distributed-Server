@@ -159,7 +159,7 @@ int parse_message_header(char *file_content, char *username, char *password, cha
   strncpy(header_start_string, file_content, 12);
   header_start_string[12] = '\0';
   if ( (strncmp(header_start_string, "&**&STX", 7)) == 0) {
-    printf("  Header Request!!\n\n");
+    //printf("  Header Request!!\n\n");
     *header_size = strlen(file_content);
     token = strtok_r(file_content, "\n", &header_left_over);
     strncpy(backup_first_line, token, strlen(token));
@@ -273,7 +273,6 @@ void client_handler(int client, int port_number, struct Username_Passwords *name
   char success_message[] = "File writing successful!";
   char header_ack_message[] = "Recieved your header!! User/Pass authorized!";
   char get_response_message[] = "Your file has been retreived";
-  char getpn_response_message[] = "MOCK getpn response 3 2 13";
   char request_method[6];
   memset(&request_method, 0, sizeof(request_method));
   // this array of strings wilh hold the path locations of file poritons 1-4
@@ -287,13 +286,13 @@ void client_handler(int client, int port_number, struct Username_Passwords *name
   printf("======================\n");
   read_size = recv(client, client_message, 1280, 0);
   if ((parse_message_header(client_message, username,  password, file_name, &header_size, &body_size, (char *)&request_method)) == 1) {
-    printf("Just a header, no need to write to any file\n");
-    printf("This was the method extracted from the header: %s\n", request_method);
-    printf("This was the username extracted from the header: %s\n", username);
-    printf("This was the password extracted from the header: %s\n", password);
-    printf("This was the filename extracted from the header: %s\n", file_name);
+    //printf("Just a header, no need to write to any file\n");
+    //printf("This was the method extracted from the header: %s\n", request_method);
+    //printf("This was the username extracted from the header: %s\n", username);
+    //printf("This was the password extracted from the header: %s\n", password);
+    //printf("This was the filename extracted from the header: %s\n", file_name);
     if ( ((validate_user(username, password, name_password))) == 0) {
-      printf("Username and password match!!\n");
+      //printf("Username and password match!!\n");
       send(client, header_ack_message, sizeof(header_ack_message), 0);
     }
     else {
@@ -321,6 +320,10 @@ void client_handler(int client, int port_number, struct Username_Passwords *name
     sprintf(server_number_char, "%d", server_number);
     strncat(server_name, server_number_char, 2);
 
+    char portion_number_char[2];
+    char getpn_response_message[64];
+    strcpy(getpn_response_message, "Portions: ");
+
     int *portion_numbers;
     char generic_dfs_folder_name [] = "%s/%s/";
     char dfs_path[sizeof(generic_dfs_folder_name) + 64];
@@ -331,6 +334,10 @@ void client_handler(int client, int port_number, struct Username_Passwords *name
     for (j = 0; j < 2; j++)
     {
       printf("These are the portion numbers extract from server %d: %d\n", port_number, *(portion_numbers+j));
+      sprintf(server_number_char, "%d", *(portion_numbers+j));
+      strncat(getpn_response_message, server_number_char, 2);
+      strncat(getpn_response_message, " ", 1);
+
     }
     send(client, getpn_response_message, sizeof(getpn_response_message), 0);
     client_ack_size = recv(client, client_ack_message_buffer, 64, 0);
@@ -421,14 +428,14 @@ int * find_file_portions(char *file_name,  char *directory_path, struct FilePort
       puts (ep->d_name);
       if ( (strstr(ep->d_name, file_name)) != NULL)
       {
-        printf("We have a match on the files!!\n");
-        printf("This is the interger version of the file portion (extracted from the last character of the file name%d\n", atoi(&ep->d_name[strlen(ep->d_name)-1]));
+        //printf("We have a match on the files!!\n");
+        //printf("This is the interger version of the file portion (extracted from the last character of the file name%d\n", atoi(&ep->d_name[strlen(ep->d_name)-1]));
         file_portion_number = atoi(&ep->d_name[strlen(ep->d_name)-1]);
         pns[i] = file_portion_number;
         i++;
         strncpy(complete_portion_file_path, directory_path, strlen(directory_path));
         strncat(complete_portion_file_path, ep->d_name, strlen(ep->d_name));
-        printf("This should be our complete file path for the portion: %s\n", complete_portion_file_path);
+        //printf("This should be our complete file path for the portion: %s\n", complete_portion_file_path);
         strcpy(locations->portion_locations[file_portion_number-1], complete_portion_file_path);
         memset(&complete_portion_file_path, 0, sizeof(complete_portion_file_path));
       }
@@ -437,7 +444,7 @@ int * find_file_portions(char *file_name,  char *directory_path, struct FilePort
   }
   else
     perror ("Couldn't open the directory");
-  printf("done with parsign the directory...\n");
+  //printf("done with parsign the directory...\n");
 
   return pns;
 }

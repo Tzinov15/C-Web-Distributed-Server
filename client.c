@@ -2,6 +2,7 @@
 int main(int argc, char ** argv) {
 
   struct ClientFileContent client_params;
+  struct FilePortionLocations locations;
 
   if (argc < 2) {
     printf("Please specify a dfc.conf file\n");
@@ -32,7 +33,7 @@ int main(int argc, char ** argv) {
     }
 
     if (strncmp(user_input, "GET", strlen("GET")) == 0) {
-      handle_get(user_input, &client_params, &destination_matrix);
+      handle_get(user_input, &client_params, &destination_matrix, &locations);
     }
 
   }
@@ -46,7 +47,7 @@ int main(int argc, char ** argv) {
 /*-------------------------------------------------------------------------------------------------------
  * handle_get - this function will be responsible for downloading the selected file from the DFS servers
  *------------------------------------------------------------------------------------------------------- */
-int handle_get (char *get_command, struct ClientFileContent *params, struct FileDistributionCombination *matrix){
+int handle_get (char *get_command, struct ClientFileContent *params, struct FileDistributionCombination *matrix, struct FilePortionLocations *locations) {
 
   /* Structs needed to be able to call the stat function which checks for file presence */
   struct stat buffer;
@@ -101,19 +102,45 @@ int handle_get (char *get_command, struct ClientFileContent *params, struct File
 
     server_message_size = recv(server, server_message_buffer, 1024, 0);
     printf("Server: %s\n",server_message_buffer );
-    //update_locations_array(server_message_buffer);
     if ( (send(server, recv_pn_response_ack, strlen(recv_pn_response_ack), 0)) == -1)
       printf("Error with sending the ack to the server");
+    update_locations_array(server_message_buffer, locations,i);
+    if ( (check_locations_arrray(locations)) == 0) {
+      printf("We have enough portions!! Time to start retreving actual file content!\n");
+    }
     memset(&server_message_buffer, 0, sizeof(server_message_buffer));
     close(server);
   }
+  printf("This is the result of loading up our locaitons array\n");
+  printf("Portion 1 is found at server: %d\n", locations->portion_locations[0][1]);
+  printf("Portion 2 is found at server: %d\n", locations->portion_locations[1][1]);
 
   return 0;
 }
 
 
 
-//void update_locations_array(char *server_message)
+void update_locations_array(char *server_message, struct FilePortionLocations *locations, int port_number) {
+  printf("This is the server message that was passed to me %s\n", server_message);
+
+  char *token;
+  int first_portion_number, second_portion_number;
+
+  token = strtok(server_message, " ");
+  printf("This should be our first word: %s\n", token);
+  token = strtok(NULL, " ");
+  printf("And this should be our first portion number : %s\n", token);
+  first_portion_number = atoi(token);
+  token = strtok(NULL, " ");
+  printf("And this should be our second portion number : %s\n", token);
+  second_portion_number = atoi(token);
+  locations->portion_locations[first_portion_number-1][0] = first_portion_number;
+  locations->portion_locations[first_portion_number-1][1] = port_number;
+
+  locations->portion_locations[second_portion_number][0] = second_portion_number;
+  locations->portion_locations[second_portion_number][1] = port_number;
+
+}
 /*-------------------------------------------------------------------------------------------------------
  * COMPLETE - calculate_hash_modulo_value - this function will take in the file name, open the file, calculate hash, extract the last byte, perform a modulo 4 operation on the decimal value of the last byte of the hash, return val
  *------------------------------------------------------------------------------------------------------- */
