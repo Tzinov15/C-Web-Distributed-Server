@@ -298,8 +298,6 @@ void send_file (int first_server_number, int second_server_number, int portion_n
       bytes_read_from_file = fread(data_buffer, 1, 1024, user_file);
       memcpy(&data_buffer_server_two, &data_buffer, sizeof(data_buffer_server_two));
       printf("This is how many bytes were read from the file (should be 1024):%zu\n", bytes_read_from_file);
-      printf("This is what was read from the file:\n%s\n", data_buffer);
-      printf("And this is what was copied to the second buffer:\n%s\n", data_buffer_server_two);
       total_bytes_read_from_file += bytes_read_from_file;
       bytes_written_to_first_server = send(server_one, data_buffer, bytes_read_from_file, 0);
       bytes_written_to_second_server = send(server_two, data_buffer_server_two, bytes_read_from_file, 0);
@@ -311,12 +309,10 @@ void send_file (int first_server_number, int second_server_number, int portion_n
 
       total_bytes_written_to_first_server += bytes_written_to_first_server;
       total_bytes_written_to_second_server += bytes_written_to_second_server;
-      printf("This is how many bytes were written to server %d (should be 1024): %zu\n",first_server_number, bytes_written_to_first_server);
-      printf("This is how many bytes were written to server %d (should be 1024): %zu\n", second_server_number, bytes_written_to_first_server);
+      printf("This is how many bytes were just written to server %d:%zu bytes and to server %d:%zubytes\n",first_server_number, bytes_written_to_first_server, second_server_number, bytes_written_to_second_server);
       portion_size_copy -= bytes_written_to_first_server;
       printf("This is how many bytes have been read total: %zu\n", total_bytes_read_from_file);
-      printf("This is how many bytes have been written total to server %d: %zu\n", first_server_number, total_bytes_written_to_first_server);
-      printf("This is how many bytes have been written total to server %d: %zu\n", second_server_number, total_bytes_written_to_second_server);
+      printf("This is how many bytes have been written total to server %d: %zu and to server %d:%zu\n", first_server_number, total_bytes_written_to_first_server, second_server_number, total_bytes_written_to_second_server);
       printf("This is how many bytes we have left to read/write from the portion: %zu\n", portion_size_copy);
     }
     else {
@@ -324,7 +320,6 @@ void send_file (int first_server_number, int second_server_number, int portion_n
       memset(&data_buffer, 0, sizeof(data_buffer));
       memset(&data_buffer_server_two, 0, sizeof(data_buffer_server_two));
       bytes_read_from_file = fread(data_buffer, 1, portion_size_copy, user_file);
-      printf("This is what was read from the file:\n%s\n", data_buffer);
       memcpy(&data_buffer_server_two, &data_buffer, sizeof(data_buffer_server_two));
       printf("This is how many bytes were read from the file %zu bytes\n", bytes_read_from_file);
       total_bytes_read_from_file += bytes_read_from_file;

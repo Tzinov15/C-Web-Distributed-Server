@@ -272,7 +272,6 @@ void client_handler(int client, int port_number, struct Username_Passwords *name
   memset(&client_message, 0, sizeof(client_message));
 
   while (total_bytes_read != total_size) {
-    sleep(1);
     read_size = recv(client, client_message, 1280, 0);
     printf("Just read this many bytes: %zu\n", read_size);
     total_bytes_read += read_size;
