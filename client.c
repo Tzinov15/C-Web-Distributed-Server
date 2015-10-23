@@ -83,7 +83,7 @@ int handle_get (char *get_command) {
  *------------------------------------------------------------------------------------------------------- */
 int calculate_hash_modulo_value(char * file_name)
 {
-  printf("||>> Hello from calculate_hash_modulo_value\n");
+  //printf("||>> Hello from calculate_hash_modulo_value\n");
 
   FILE *users_file;
   users_file = fopen(file_name, "r");
@@ -100,16 +100,15 @@ int calculate_hash_modulo_value(char * file_name)
     MD5_Update (&mdContext, data, bytes);
   }
   MD5_Final (c, &mdContext);
-  printf("    This is the complete hash value of our file in hex: ");
+  //printf("    This is the complete hash value of our file in hex: ");
   for (i = 0; i < MD5_DIGEST_LENGTH; i+=1)  {
-    printf("%02x", c[i]);
+    //printf("%02x", c[i]);
   }
-  printf("\n");
 
   snprintf(hex_byte, 4, "%d", c[15]);
   last_hex_byte = atoi(hex_byte);
   hash_modulo_4 = last_hex_byte % 4;
-  printf("    This is the last byte of the hash value in hex: %02x and in decimal: %d and in modulo 4: %d\n", c[15], last_hex_byte, hash_modulo_4);
+  //printf("    This is the last byte of the hash value in hex: %02x and in decimal: %d and in modulo 4: %d\n", c[15], last_hex_byte, hash_modulo_4);
   fclose(users_file);
   return hash_modulo_4;
 
@@ -120,7 +119,7 @@ int calculate_hash_modulo_value(char * file_name)
  *------------------------------------------------------------------------------------------------------- */
 int handle_put (char *put_command, struct ClientFileContent *params, struct FileDistributionCombination *matrix){
 
-  printf("||>> Hi from handle_put\n");
+  //printf("||>> Hi from handle_put\n");
   // Structs needed to be able to call the stat function for file information
   struct stat buffer;
   /* file_name used in strtok_r to capture content after space, read_line is buffer that fgets writes to, extra_args is for any additional parameters that the user wrongly supplied */
@@ -192,7 +191,7 @@ int handle_put (char *put_command, struct ClientFileContent *params, struct File
   /* Get size of file that user specified */
   file_size = buffer.st_size; 
   file_size_copy = file_size;
-  printf("    The size of the original file is %zd\n", file_size); 
+  //printf("    The size of the original file is %zd\n", file_size); 
 
   /* Set the file sizes of each portion based on the original size of the complete file */
   portion_one_size = file_size / 4;
@@ -285,8 +284,8 @@ printf("\n||>> Hello from send_file\n");
   total_read_bytes = 0;
   total_written_bytes = 0;
   total_written_bytes_server_two = 0;
-  printf("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
-  printf("This is the portion size of the file that we are about to read %zu\n", portion_size);
+  //printf("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
+  //printf("This is the portion size of the file that we are about to read %zu\n", portion_size);
 
   // Send the file message header to both servers, THEN start sending the body in chunks of 1024 bytes 
   if ( (send(server_one, message_header, strlen(message_header), 0)) == -1)
@@ -294,17 +293,17 @@ printf("\n||>> Hello from send_file\n");
   if ( (send(server_two, message_header, strlen(message_header), 0)) == -1)
     printf("Error with sending the header to the second server");
 
-  while (total_read_bytes != portion_size) {
-    sleep(1);
+  while (total_read_bytes != portion_size)
+  {
     if (portion_size_copy > 1024) {
-      printf("&& Portion still too big to fit into buffer...\n");
+      //printf("&& Portion still too big to fit into buffer...\n");
       memset(&data_buffer, 0, sizeof(data_buffer));
       memset(&data_buffer_server_two, 0, sizeof(data_buffer_server_two));
       read_bytes = fread(data_buffer, 1, 1024, user_file);
       memcpy(&data_buffer_server_two, &data_buffer, sizeof(data_buffer_server_two));
       printf("This is how many bytes were read from the file (should be 1024):%zu\n", read_bytes);
       printf("This is what was read from the file:\n%s\n", data_buffer);
-      //printf("And this is what was copied to the second buffer:\n%s\n", data_buffer_server_two);
+      printf("And this is what was copied to the second buffer:\n%s\n", data_buffer_server_two);
       total_read_bytes += read_bytes;
       written_bytes = send(server_one, data_buffer, read_bytes, 0);
       written_bytes_server_two = send(server_two, data_buffer_server_two, read_bytes, 0);
@@ -325,14 +324,14 @@ printf("\n||>> Hello from send_file\n");
       printf("This is how many bytes we have left to read/write from the portion: %zu\n", portion_size_copy);
     }
     else {
-      printf("&& Portion should now fit into buffer...\n");
+      //printf("&& Portion should now fit into buffer...\n");
       memset(&data_buffer, 0, sizeof(data_buffer));
       memset(&data_buffer_server_two, 0, sizeof(data_buffer_server_two));
       read_bytes = fread(data_buffer, 1, portion_size_copy, user_file);
       printf("This is what was read from the file:\n%s\n", data_buffer);
       memcpy(&data_buffer_server_two, &data_buffer, sizeof(data_buffer_server_two));
       printf("This is how many bytes were read from the file %zu bytes\n", read_bytes);
-      //printf("And this is what was copied to the second buffer:\n%s\n", data_buffer_server_two);
+      printf("and this is what was copied to the second buffer:\n%s\n", data_buffer_server_two);
       total_read_bytes += read_bytes;
       written_bytes = send(server_one, data_buffer, read_bytes, 0);
       written_bytes_server_two = send(server_two, data_buffer_server_two, read_bytes, 0);
@@ -343,10 +342,18 @@ printf("\n||>> Hello from send_file\n");
       total_written_bytes += written_bytes;
       total_written_bytes_server_two += written_bytes_server_two;
       printf("This is how many bytes were just written to server %d:%zu bytes and to server %d:%zubytes\n",first_server_number, written_bytes, second_server_number, written_bytes_server_two);
-      //printf("This is how many bytes have been read total: %zu\n", total_read_bytes);
-      //printf("This is how many bytes have been written total to server %d: %zu and to server %d:%zu\n", first_server_number, total_written_bytes, second_server_number, total_written_bytes_server_two);
+      printf("This is how many bytes have been read total: %zu\n", total_read_bytes);
+      printf("This is how many bytes have been written total to server %d: %zu and to server %d:%zu\n", first_server_number, total_written_bytes, second_server_number, total_written_bytes_server_two);
       printf("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
     }
+    /*
+    first_server_message_size = recv(server_one, first_server_message_buffer, 1024, MSG_DONTWAIT);
+    second_server_message_size = recv(server_two, second_server_message_buffer, 1024, MSG_DONTWAIT);
+    if (first_server_message_size != 0)
+      printf("Server #%d: %s\n",first_server_number,first_server_message_buffer );
+    if (second_server_message_size != 0)
+      printf("Server #%d: %s\n",second_server_number,second_server_message_buffer );
+      */
 
   }
   close(server_one);
@@ -354,7 +361,7 @@ printf("\n||>> Hello from send_file\n");
 
 }
 int create_socket_to_server(int server_number, struct ClientFileContent *params) {
-  printf("||>> Hello from create_socket_to_server\n");
+  //printf("||>> Hello from create_socket_to_server\n");
   int sock;
   sock = socket(AF_INET, SOCK_STREAM, 0);
 

@@ -13,11 +13,6 @@ int main(int argc, char ** argv)
 
   struct Username_Passwords user_pass;
   parse_server_conf_file(&user_pass);
-  int i;
-  for (i = 0; i < MAX_USERS; i++)
-  {
-    printf("This is user number %d. Username: %s. Password: %s\n", i, user_pass.username[i], user_pass.password[i]);
-  }
 
   int main_socket, cli, pid, port_number;
   port_number = atoi(argv[2]);
@@ -48,7 +43,7 @@ int main(int argc, char ** argv)
      * close the master socket for the childs (clients) address space */
     if (pid == 0) {
       close(main_socket);
-      client_handler(client_socket, port_number);
+      client_handler(client_socket, port_number,&user_pass);
       //close(cli);
       exit(0);
     }
@@ -87,23 +82,25 @@ void parse_server_conf_file(struct Username_Passwords *name_password) {
     exit(-1);
   }
   
-  printf("Server conf file succesfully opened!!\n");
+  //printf("Server conf file succesfully opened!!\n");
 
   char *token;
   int counter = 0;
 
+  /* read file and parse out usernames and passwords, popualte struct */
   while (fgets (read_line,200, config_file) != NULL) {
+    /* cap the number of users we read in and thus accept */
     if (counter == MAX_USERS) {
-      printf("Max number of users parsed, ignoring the rest\n");
+      //printf("Max number of users parsed, ignoring the rest\n");
       return;
     }
       token = strtok(read_line, " ");
-      printf("This should be our username: %s\n", token);
+      //printf("This should be our username: %s\n", token);
       strcpy(name_password->username[counter], token);
       token = strtok(NULL, " ");
 
       deleteSubstring(token, "\n");
-      printf("This should be our password: %s\n", token);
+      //printf("This should be our password: %s\n", token);
       strcpy(name_password->password[counter], token);
       counter++;
   }
@@ -113,10 +110,26 @@ void parse_server_conf_file(struct Username_Passwords *name_password) {
 /*---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  * validate_user - this function will take the username and passed into it, validate that the two match with the dfs.conf record, and return a 0 or a 1 based on the result
  *--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- */
-int validate_user(char *username, char *password) {
+int validate_user(char *username, char *password, struct Username_Passwords *name_password) {
   printf("||>> Hello from validate_user\n");
   printf("    This is the username that was passed to me%s\n", username);
   printf("    This is the password that was passed to me%s\n", password);
+
+  
+  int i;
+  for (i = 0; i < MAX_USERS; i++)
+  {
+    if (strncmp(name_password->username[i], username, strlen(username)) == 0)
+    {
+      printf("We have a matching username!...\n");
+      if (strncmp(name_password->password[i], password, strlen(password)) == 0) {
+        printf("We have a matching password!...\n");
+        return 0;
+      }
+    }
+  }
+printf("User and password did not match\n");
+return 1;
 }
 
 /*---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -220,54 +233,45 @@ void create_file_from_portion(char *file_name, char *body, int port_number, char
 /*----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  * client_handler - this is the function that gets first called by the child (client) process. It receives the initial request and proceeds onward with error handling, parsing, and file serving
  *----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
-void client_handler(int client, int port_number) {
-  ssize_t read_size;
-  ssize_t total_bytes_read;
+void client_handler(int client, int port_number, struct Username_Passwords *name_password) {
+  ssize_t read_size, total_bytes_read;
   total_bytes_read = 0;
-  char client_message[1024+256];
-  char body[1024];
-  char username[64];
-  char password[64];
-  char file_name[64];
+  char client_message[1024+256], body[1024], username[64], password[64], file_name[64];
   int is_header;
-  unsigned long header_size = 0;
-  unsigned long body_size = 0;
-  unsigned long  total_size = 1;
+  unsigned long header_size = 0, body_size = 0,  total_size = 1;
+
+  char incorrect_password_message[44] = "Invalid Username/Password. Please try again";
+  incorrect_password_message[43] = '\0';
+
+  char success_message[25] = "File writing successful!";
+  success_message[24] = '\0';
+
   memset(&client_message, 0, sizeof(client_message));
   memset(&body, 0, sizeof(body));
 
   printf("======================\n");
-  printf("======================\n");
 
-  while (total_bytes_read != total_size)
-  {
+  while (total_bytes_read != total_size) {
     sleep(1);
     read_size = recv(client, client_message, 1024, 0);
     total_bytes_read += read_size;
     printf("Just read this many bytes: %zu\n", read_size);
     printf("Total read bytes: %zu\n", total_bytes_read);
-    // if our message received on the socket is just the header...no need to write anyting to a file 
-    is_header =  (parse_message_header(client_message, username,  password, file_name, &header_size, &body_size));
-    if (validate_user(username, password))
-      printf("Username and password do not match!!\n");
-    else if (!is_header)
-      create_file_from_portion(file_name, client_message, port_number, username);
-    total_size = header_size + body_size;
 
-    /*
-    printf("This is the username from the header: %s\n", username);
-    printf("This is the password from the header: %s\n", password);
-    printf("This is the body size from the header: %zd\n", body_size);
-    */
-    /*
-    if (validate_user(username, password))
-      printf("Username and password do not match!!\n");
-    else
-      create_file_from_portion (file_name, body);
-    sleep(1);
-    */
+    if ((parse_message_header(client_message, username,  password, file_name, &header_size, &body_size)) == 1) {
+      printf("Just a header, no need to write to any file\n");
+      if ( ((validate_user(username, password, name_password))) == 0) {
+        printf("Username and password match!!\n");
+      }}
+    else 
+      create_file_from_portion(file_name, client_message, port_number, username);
+
+    total_size = header_size + body_size;
     memset(&client_message, 0, sizeof(client_message));
+    printf("This is the total bytes read: %zu\n", total_bytes_read);
+    printf("This is the total size of the portion %zu\n", total_size);
   }
+  //send(client, success_message, sizeof(success_message), 0);
 }
 
 
