@@ -236,7 +236,7 @@ void create_file_from_portion(char *file_name, char *body, int port_number, char
 void client_handler(int client, int port_number, struct Username_Passwords *name_password) {
   ssize_t read_size, total_bytes_read;
   total_bytes_read = 0;
-  char client_message[1024+256], body[1024], username[64], password[64], file_name[64];
+  char client_message[1280], body[1024], username[64], password[64], file_name[64];
   int is_header;
   unsigned long header_size = 0, body_size = 0,  total_size = 1;
 
@@ -252,26 +252,29 @@ void client_handler(int client, int port_number, struct Username_Passwords *name
   printf("======================\n");
 
   while (total_bytes_read != total_size) {
-    sleep(1);
-    read_size = recv(client, client_message, 1024, 0);
+    sleep(2);
+    read_size = recv(client, client_message, 1280, 0);
     total_bytes_read += read_size;
     printf("Just read this many bytes: %zu\n", read_size);
     printf("Total read bytes: %zu\n", total_bytes_read);
+    printf("This is what I just read from the client: \n%s\n", client_message);
+    /*
+       if ((parse_message_header(client_message, username,  password, file_name, &header_size, &body_size)) == 1) {
+       printf("Just a header, no need to write to any file\n");
+       if ( ((validate_user(username, password, name_password))) == 0) {
+       printf("Username and password match!!\n");
+       }}
+       else 
+       create_file_from_portion(file_name, client_message, port_number, username);
 
-    if ((parse_message_header(client_message, username,  password, file_name, &header_size, &body_size)) == 1) {
-      printf("Just a header, no need to write to any file\n");
-      if ( ((validate_user(username, password, name_password))) == 0) {
-        printf("Username and password match!!\n");
-      }}
-    else 
-      create_file_from_portion(file_name, client_message, port_number, username);
-
-    total_size = header_size + body_size;
-    memset(&client_message, 0, sizeof(client_message));
-    printf("This is the total bytes read: %zu\n", total_bytes_read);
-    printf("This is the total size of the portion %zu\n", total_size);
-  }
-  //send(client, success_message, sizeof(success_message), 0);
+       total_size = header_size + body_size;
+       memset(&client_message, 0, sizeof(client_message));
+       printf("This is the total bytes read: %zu\n", total_bytes_read);
+       printf("This is the total size of the portion %zu\n", total_size);
+       }
+    //send(client, success_message, sizeof(success_message), 0);
+    */
+}
 }
 
 
