@@ -11,7 +11,10 @@ int main(int argc, char ** argv)
     printf("Please specify a port number \n");
     exit(1); }
 
+  struct FilePortionLocations portion_locations;
   struct Username_Passwords user_pass;
+
+
   parse_server_conf_file(&user_pass);
 
   int main_socket, cli, pid, port_number;
@@ -43,7 +46,7 @@ int main(int argc, char ** argv)
      * close the master socket for the childs (clients) address space */
     if (pid == 0) {
       close(main_socket);
-      client_handler(client_socket, port_number,&user_pass);
+      client_handler(client_socket, port_number,&user_pass, &portion_locations);
       //close(cli);
       exit(0);
     }
@@ -249,7 +252,7 @@ void create_file_from_portion(char *file_name, char *body, int port_number, char
 /*----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  * client_handler - this is the function that gets first called by the child (client) process. It receives the initial request and proceeds onward with error handling, parsing, and file serving
  *----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
-void client_handler(int client, int port_number, struct Username_Passwords *name_password) {
+void client_handler(int client, int port_number, struct Username_Passwords *name_password, struct FilePortionLocations *locations) {
   ssize_t read_size, total_bytes_read;
   total_bytes_read = 0;
   char client_message[1280], body[1024], username[64], password[64], file_name[64];
@@ -263,7 +266,6 @@ void client_handler(int client, int port_number, struct Username_Passwords *name
   char request_method[5];
   memset(&request_method, 0, sizeof(request_method));
   // this array of strings wilh hold the path locations of file poritons 1-4
-  char portion_locations[4][256];
 
   memset(&client_message, 0, sizeof(client_message));
   memset(&body, 0, sizeof(body));
@@ -290,12 +292,14 @@ void client_handler(int client, int port_number, struct Username_Passwords *name
   }
   if (strncmp(request_method, "GET", 3) == 0)
   {
+    int i;
     printf("We have a GET request that we need to deal with!!\n");
     char generic_dfs_folder_name [] = "%s/%s/";
 
     char dfs1_path[sizeof(generic_dfs_folder_name) + 64];
     memset(&dfs1_path, 0, sizeof(dfs1_path));
     snprintf(dfs1_path, sizeof(dfs1_path), generic_dfs_folder_name, "DFS1", username);
+
 
     char dfs2_path[sizeof(generic_dfs_folder_name) + 64];
     memset(&dfs2_path, 0, sizeof(dfs2_path));
@@ -309,7 +313,11 @@ void client_handler(int client, int port_number, struct Username_Passwords *name
     memset(&dfs4_path, 0, sizeof(dfs4_path));
     snprintf(dfs4_path, sizeof(dfs4_path), generic_dfs_folder_name, "DFS4", username);
 
-    find_file_portions(file_name, portion_locations, dfs1_path);
+    find_file_portions(file_name, dfs1_path, locations);
+    for (i = 0; i < 4; i++)
+    {
+      printf("File portion %d can be found at %s\n", i, locations->portion_locations[i]);
+    }
     send(client, get_response_message, sizeof(get_response_message), 0);
     return;
 
@@ -338,11 +346,12 @@ void client_handler(int client, int port_number, struct Username_Passwords *name
     send(client, success_message, sizeof(success_message), 0);
   }
 }
-void find_file_portions(char *file_name, char **locations_array, char *directory_path)
+void find_file_portions(char *file_name,  char *directory_path, struct FilePortionLocations *locations)
 {
   DIR *dp;
   struct dirent *ep;
   char complete_portion_file_path[strlen(directory_path) + 128];
+  int file_portion_number;
   memset(&complete_portion_file_path, 0, sizeof(complete_portion_file_path));
 
   dp = opendir (directory_path);
@@ -353,13 +362,13 @@ void find_file_portions(char *file_name, char **locations_array, char *directory
       if ( (strstr(ep->d_name, file_name)) != NULL)
       {
         printf("We have a match on the files!!\n");
-        printf("This is the last character of the file name: %c\n", ep->d_name[strlen(ep->d_name)-1]);
         printf("This is the interger version of the file portion (extracted from the last character of the file name%d\n", atoi(&ep->d_name[strlen(ep->d_name)-1]));
-        printf("This is the second character of the file name: %c\n", ep->d_name[1]);
+        file_portion_number = atoi(&ep->d_name[strlen(ep->d_name)-1]);
         strncpy(complete_portion_file_path, directory_path, strlen(directory_path));
         strncat(complete_portion_file_path, ep->d_name, strlen(ep->d_name));
         printf("This should be our complete file path for the portion: %s\n", complete_portion_file_path);
-        strncpy(locations_array[atoi(&ep->d_name[strlen(ep->d_name)-1])], complete_portion_file_path, strlen(complete_portion_file_path));
+        strcpy(locations->portion_locations[file_portion_number-1], complete_portion_file_path);
+        printf("should be getting a print here...\n");
         memset(&complete_portion_file_path, 0, sizeof(complete_portion_file_path));
       }
     } 
@@ -367,7 +376,7 @@ void find_file_portions(char *file_name, char **locations_array, char *directory
   }
   else
     perror ("Couldn't open the directory");
-
+printf("done with parsign the directory...\n");
 }
 
 /*----------------------------------------------------------------------------------------------
