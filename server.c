@@ -349,11 +349,39 @@ void client_handler(int client, int port_number, struct Username_Passwords *name
   }
   if (strncmp(request_method, "GET", 3) == 0)
   {
-    printf("This is the parsed filename from the header, no idea if its going to work: %s\n", file_name);
+    char client_ready_for_get_header_message_buffer[64];
+    memset(&client_ready_for_get_header_message_buffer, 0, sizeof(client_ready_for_get_header_message_buffer));
+    ssize_t client_ready_for_get_header_size;
+
+    char get_response_header[32];
+    memset(&get_response_header, 0, sizeof(get_response_header));
+
     char client_ready_for_get_body_message_buffer[64];
+    memset(&client_ready_for_get_body_message_buffer, 0, sizeof(client_ready_for_get_body_message_buffer));
     ssize_t client_ready_for_get_body_size;
+
+    client_ready_for_get_header_size = recv(client, client_ready_for_get_header_message_buffer, 64, 0);
+    printf("Client: %s\n", client_ready_for_get_header_message_buffer);
+    construct_get_response_header(file_name, get_response_header);
+    printf("This is the get response header that we are sending to the client: %s\n", get_response_header);
+    send(client, get_response_header, sizeof(get_response_header), 0);
     client_ready_for_get_body_size = recv(client, client_ready_for_get_body_message_buffer, 64, 0);
     printf("Client: %s\n", client_ready_for_get_body_message_buffer);
+
+
+    
+    
+    char file_portion_reading_buffer[1024];
+    memset(&file_portion_reading_buffer, 0, sizeof(file_portion_reading_buffer));
+    ssize_t read_bytes;
+    FILE *portion_file;
+    portion_file = fopen(file_name, "r");
+    while (!feof(requested_file)) {
+      read_bytes = fread(buffer, 1, 1024, portion_file);
+      send(client, buffer, read_bytes, 0);
+      memset(&file_portion_reading_buffer, 0, sizeof(file_portion_reading_buffer));
+    }
+    fclose(requested_file);
 
     // start sending data to client
 
@@ -405,9 +433,24 @@ void client_handler(int client, int port_number, struct Username_Passwords *name
       //printf("This is the total size of the portion %zu\n", total_size);
       send(client, success_message, sizeof(success_message), 0);
     }
-
   }
 }
+
+void construct_get_response_header(char *file_name, char *get_response_header) {
+  struct stat buffer;
+
+  if ( (stat(file_name, &buffer)) ==  0) {
+    // convert the portion numeber into a char
+    char body_size_char[65];
+    memset(&body_size_char, 0, sizeof(body_size_char));
+    sprintf(body_size_char, "%lld", buffer.st_size);
+    strcpy(get_response_header, "BodySize: ");
+    strcat(get_response_header, body_size_char);
+  }
+  else
+    printf("uh oh, file does not exist\n");
+}
+
 
 void send_back_file(locations, client) {
 }

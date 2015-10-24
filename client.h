@@ -41,6 +41,7 @@ struct FilePortionLocations {
 
 
 // void setup_file_matrix(struct FileCombos *matrix);
+void get_portion_size(char *file_content, unsigned long *body_size);
 int check_locations_array(struct FilePortionLocations *locations);
 void update_locations_array(char *server_message, struct FilePortionLocations *locations, int port_number);
 void send_file (int first_server_number, int second_server_number, int portion_number, ssize_t portion_size, FILE *user_file, struct ClientFileContent *params, char *portion_file_name);

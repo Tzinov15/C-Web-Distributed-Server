@@ -137,29 +137,56 @@ int handle_get (char *get_command, struct ClientFileContent *params, struct File
   printf("Yay we left the for loop!!!\n\n\n");
   char get_header[256];
 
+  char ready_for_header_ack[] = "I am ready for the portion header";
   char ready_for_body_ack[] = "I am ready for the portion body";
   ssize_t server_get_header_ack_size;
   char server_get_header_ack_buffer[64];
   int a_server;
   int y;
-  
+
+  char portion_header_buffer[1024];
+  ssize_t portion_header_buffer_size;
+
+  char portion_body_buffer[1024];
+  ssize_t portion_body_buffer_size;
+  ssize_t total_bytes_read_from_server = 0;
   for (y = 0; y < 4; y++)
   {
     construct_get_header(file_name, params, get_header, locations->portion_locations[y][1], y);
-    printf("This our get header so far %s\n", get_header);
     a_server = create_socket_to_server(locations->portion_locations[y][1], params);
     if ( (send(a_server, get_header, strlen(get_header), 0)) == -1)
       printf("Error with sending the actual GET header to the server");
     server_get_header_ack_size = recv(a_server, server_get_header_ack_buffer, 64, 0);
     printf("Server: %s\n",server_get_header_ack_buffer );
+    if ( (send(a_server, ready_for_header_ack, strlen(ready_for_header_ack), 0)) == -1)
+      printf("Error with sending the thumbs up ack for header to the server");
+
+    unsigned long  body_size = 0;
+    portion_header_buffer_size = recv(a_server, portion_header_buffer, 1024, 0);
     if ( (send(a_server, ready_for_body_ack, strlen(ready_for_body_ack), 0)) == -1)
-      printf("Error with sending the thumbs up ack to the server");
+      printf("Error with sending the thumbs up ack for body to the server");
+
+    get_portion_size(portion_header_buffer, &body_size);
+    memset(&client_message, 0, sizeof(client_message));
+
+    while (total_bytes_read_from_server != body_size) 
     close(a_server);
 
     // start receiving data from server
   }
   return 0;
 }
+
+void get_portion_size(char *file_content, unsigned long *body_size) {
+
+  char *body_size_token;
+  char *ptr;
+  body_size_token = strtok(file_content, " ");
+  body_size_token = strtok(NULL, " ");
+  *body_size = strtoul(body_size_token, &ptr, 10);
+}
+
+
 
 
 int check_locations_array(struct FilePortionLocations *locations) {
@@ -519,17 +546,37 @@ void construct_get_header(char *filename, struct ClientFileContent *params, char
   char portion_number_char[2];
   sprintf(portion_number_char, "%d", portion_number+1);
 
+  char folder_name[8];
+  memset(&folder_name, 0, sizeof(folder_name));
 
-  strcpy(absolute_file_portion_location, ".");
+  switch (server_number) {
+    case 1:
+      strcpy(folder_name, "./DFS1/");
+      break;
+    case 2:
+      strcpy(folder_name, "./DFS2/");
+      break;
+    case 3:
+      strcpy(folder_name, "./DFS3/");
+      break;
+    case 4:
+      strcpy(folder_name, "./DFS4/");
+      break;
+    default:
+      printf("This should not happen!!!\n");
+      break;
+  }
+
+
+  strcat(absolute_file_portion_location, folder_name);
+  strcat(absolute_file_portion_location, params->username);
+  strcat(absolute_file_portion_location, "/");
+  strcat(absolute_file_portion_location, ".");
   strcat(absolute_file_portion_location, server_number_char);
   strcat(absolute_file_portion_location, ".");
   strcat(absolute_file_portion_location, filename);
   strcat(absolute_file_portion_location, ".");
   strcat(absolute_file_portion_location, portion_number_char);
-
-
-
-
   strcpy(header, "&**&STXGET ");
   strcat(header, absolute_file_portion_location);
   strcat(header, "\n");
