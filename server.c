@@ -368,20 +368,30 @@ void client_handler(int client, int port_number, struct Username_Passwords *name
     client_ready_for_get_body_size = recv(client, client_ready_for_get_body_message_buffer, 64, 0);
     printf("Client: %s\n", client_ready_for_get_body_message_buffer);
 
+    char client_body_portion_ack_buffer[64];
+    ssize_t client_body_portion_ack_size;
 
-    
-    
     char file_portion_reading_buffer[1024];
     memset(&file_portion_reading_buffer, 0, sizeof(file_portion_reading_buffer));
     ssize_t read_bytes;
+
     FILE *portion_file;
     portion_file = fopen(file_name, "r");
-    while (!feof(requested_file)) {
-      read_bytes = fread(buffer, 1, 1024, portion_file);
-      send(client, buffer, read_bytes, 0);
+    if (portion_file == NULL) {
+      printf("Oops, error opening the file\n");
+      exit(1);
+    }
+    printf("Starting to read the file portion and send it to the client\n");
+
+    while (!feof(portion_file)) {
+      read_bytes = fread(file_portion_reading_buffer, 1, 1024, portion_file);
+      send(client, file_portion_reading_buffer, read_bytes, 0);
+      client_body_portion_ack_size = recv(client, client_body_portion_ack_buffer, 64, 0);
+      printf("Client: %s\n", client_body_portion_ack_buffer);
       memset(&file_portion_reading_buffer, 0, sizeof(file_portion_reading_buffer));
     }
-    fclose(requested_file);
+    fclose(portion_file);
+    printf("Server is done writting the file portion to the client\n");
 
     // start sending data to client
 

@@ -129,7 +129,6 @@ int handle_get (char *get_command, struct ClientFileContent *params, struct File
       break;
     }
     else
-      printf("Not enough portions yet...\n\n\n");
     memset(&server_message_buffer, 0, sizeof(server_message_buffer));
     close(server);
   }
@@ -139,6 +138,7 @@ int handle_get (char *get_command, struct ClientFileContent *params, struct File
 
   char ready_for_header_ack[] = "I am ready for the portion header";
   char ready_for_body_ack[] = "I am ready for the portion body";
+  char portion_body_ack[] = "Just wrote the data you sent";
   ssize_t server_get_header_ack_size;
   char server_get_header_ack_buffer[64];
   int a_server;
@@ -150,8 +150,15 @@ int handle_get (char *get_command, struct ClientFileContent *params, struct File
   char portion_body_buffer[1024];
   ssize_t portion_body_buffer_size;
   ssize_t total_bytes_read_from_server = 0;
+  FILE *user_file;
+  user_file = fopen(file_name, "a");
+  if (user_file == NULL) {
+    printf("Oops, error opening the file\n");
+    exit(1);
+  }
   for (y = 0; y < 4; y++)
   {
+    printf("Starting the process for getting portion number %d\n", locations->portion_locations[y][0]);
     construct_get_header(file_name, params, get_header, locations->portion_locations[y][1], y);
     a_server = create_socket_to_server(locations->portion_locations[y][1], params);
     if ( (send(a_server, get_header, strlen(get_header), 0)) == -1)
@@ -162,20 +169,31 @@ int handle_get (char *get_command, struct ClientFileContent *params, struct File
       printf("Error with sending the thumbs up ack for header to the server");
 
     unsigned long  body_size = 0;
+    total_bytes_read_from_server = 0;
     portion_header_buffer_size = recv(a_server, portion_header_buffer, 1024, 0);
     if ( (send(a_server, ready_for_body_ack, strlen(ready_for_body_ack), 0)) == -1)
       printf("Error with sending the thumbs up ack for body to the server");
 
     get_portion_size(portion_header_buffer, &body_size);
-    memset(&client_message, 0, sizeof(client_message));
 
-    while (total_bytes_read_from_server != body_size) 
+    memset(&portion_body_buffer, 0, sizeof(portion_body_buffer));
+    printf("Starting the loop where we read from server, write to client. Current portion size is %zu\n", body_size);
+    while (total_bytes_read_from_server != body_size)  {
+      portion_body_buffer_size = recv(a_server, portion_body_buffer, 1024, 0);
+      printf("Just read this many bytes: %zu\n", portion_body_buffer_size);
+      total_bytes_read_from_server += portion_body_buffer_size;
+      printf("This is what I just read from the client: \n%s\n", portion_body_buffer);
+      fwrite(portion_body_buffer, 1, portion_body_buffer_size, user_file);
+      memset(&portion_body_buffer, 0, sizeof(portion_body_buffer));
+      printf("This is the total bytes read: %zu\n", total_bytes_read_from_server);
+      send(a_server, portion_body_ack, sizeof(portion_body_ack), 0);
+    }
     close(a_server);
-
-    // start receiving data from server
   }
+  fclose(user_file);
+
   return 0;
-}
+  }
 
 void get_portion_size(char *file_content, unsigned long *body_size) {
 
