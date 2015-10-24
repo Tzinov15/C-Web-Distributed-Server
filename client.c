@@ -55,10 +55,17 @@ int main(int argc, char ** argv) {
  *------------------------------------------------------------------------------------------------------- */
 int handle_get (char *get_command, struct ClientFileContent *params, struct FileDistributionCombination *matrix, struct FilePortionLocations *locations) {
 
+  int l;
+  // Reset the values for the portion location matrix so that we start with zero of the necassary four portion locations
+  for (l = 0; l < 4; l++)
+  {
+    locations->portion_locations[l][0] = 111;
+    locations->portion_locations[l][1] = 111;
+  }
   /* Structs needed to be able to call the stat function which checks for file presence */
-  struct stat buffer;
+  struct stat;
   /* file_name used in strtok_r to capture content after space, read_line is buffer that fgets writes to */
-  char *file_name, read_line[200], *extra_args;
+  char *file_name, *extra_args;
 
   /*-----------------------------------
    * Error Checking / Input Validation
@@ -89,32 +96,34 @@ int handle_get (char *get_command, struct ClientFileContent *params, struct File
   char server_message_buffer[1024];
   ssize_t server_message_size;
   construct_getpn_header(file_name, params, message_pn_header);
-  printf("This is our get request so far: \n%s\n",message_pn_header );
+  //printf("This is our get request so far: \n%s\n",message_pn_header );
 
   int i;
   int server;
+  // the following loop will go to a server, extract the portion numbers for the file that we wish to get, write them into our location matrix
+  // It will then check if our location matrix is complete (meaning we have enough workign servers to reconstruct our file), and if we do, exit the loop
+  // If we do not have have enough, it will continue on to the next server 
   for (i = 1; i < 5; i++)
   {
     server = create_socket_to_server(i, params);
 
     if ( (send(server, message_pn_header, strlen(message_pn_header), 0)) == -1)
       printf("Error with sending the header to the first server");
-
     server_header_ack_size = recv(server, server_header_ack_buffer, 1024, 0);
     printf("Server: %s\n",server_header_ack_buffer );
 
     if ( (send(server, thumbs_up_ack, strlen(thumbs_up_ack), 0)) == -1)
       printf("Error with sending the thumbs up ack to the server");
-
     server_message_size = recv(server, server_message_buffer, 1024, 0);
     printf("Server: %s\n",server_message_buffer );
+
     if ( (send(server, recv_pn_response_ack, strlen(recv_pn_response_ack), 0)) == -1)
       printf("Error with sending the ack to the server");
     update_locations_array(server_message_buffer, locations,i);
-    printf("Portion 1: (portion number) %d (server number) %d\n", locations->portion_locations[0][0], locations->portion_locations[0][1]);
-    printf("Portion 2: (portion number) %d (server number) %d\n", locations->portion_locations[1][0], locations->portion_locations[1][1]);
-    printf("Portion 3: (portion number) %d (server number) %d\n", locations->portion_locations[2][0], locations->portion_locations[2][1]);
-    printf("Portion 4: (portion number) %d (server number) %d\n", locations->portion_locations[3][0], locations->portion_locations[3][1]);
+    //printf("Portion 1: (portion number) %d (server number) %d\n", locations->portion_locations[0][0], locations->portion_locations[0][1]);
+    //printf("Portion 2: (portion number) %d (server number) %d\n", locations->portion_locations[1][0], locations->portion_locations[1][1]);
+    //printf("Portion 3: (portion number) %d (server number) %d\n", locations->portion_locations[2][0], locations->portion_locations[2][1]);
+    //printf("Portion 4: (portion number) %d (server number) %d\n", locations->portion_locations[3][0], locations->portion_locations[3][1]);
     if ( (check_locations_array(locations)) == 0) {
       printf("We have enough portions!! Time to start retreving actual file content!\n");
       break;
@@ -127,6 +136,21 @@ int handle_get (char *get_command, struct ClientFileContent *params, struct File
   }
 
   printf("Yay we left the for loop!!!\n");
+  /*
+  char message_header[256];
+
+  int k;
+  int a_server;
+  for (k = 0; k < 4; k++)
+  {
+    construct_get_header(file_name, params, message_pn_header, locations->portion_locations[k][0]);
+    a_server = create_socket_to_server(locations->portion_locations[k][1], params);
+    if ( (send(server, message_header, strlen(message_header), 0)) == -1)
+      printf("Error with sending the actual GET header to the first server");
+
+
+  }
+  */
   return 0;
 }
 
@@ -172,8 +196,7 @@ int calculate_hash_modulo_value(char * file_name)
 
   unsigned char c[MD5_DIGEST_LENGTH], data[1024];
   int i, bytes, last_hex_byte, hash_modulo_4;
-  long ret;
-  char *ptr, hex_byte[4];
+  char hex_byte[4];
   MD5_CTX mdContext;
   memset(&data, 0, sizeof(data));
 
@@ -201,7 +224,7 @@ int handle_put (char *put_command, struct ClientFileContent *params, struct File
   // Structs needed to be able to call the stat function for file information
   struct stat buffer;
   // file_name used in strtok_r to capture content after space, read_line is buffer that fgets writes to, extra_args is for any additional parameters that the user wrongly supplied */
-  char *file_name, read_line[200], *extra_args;
+  char *file_name, *extra_args;
 
   /* Extract the second word from the PUT command (the filename) and strip it of newline character */
   strtok_r(put_command, " ", &file_name);
@@ -369,7 +392,7 @@ void send_file (int first_server_number, int second_server_number, int portion_n
       memset(&data_buffer_server_two, 0, sizeof(data_buffer_server_two));
       bytes_read_from_file = fread(data_buffer, 1, 1024, user_file);
       memcpy(&data_buffer_server_two, &data_buffer, sizeof(data_buffer_server_two));
-      printf("This is how many bytes were read from the file (should be 1024):%zu\n", bytes_read_from_file);
+      //printf("This is how many bytes were read from the file (should be 1024):%zu\n", bytes_read_from_file);
       total_bytes_read_from_file += bytes_read_from_file;
       bytes_written_to_first_server = send(server_one, data_buffer, bytes_read_from_file, 0);
       bytes_written_to_second_server = send(server_two, data_buffer_server_two, bytes_read_from_file, 0);
@@ -381,11 +404,11 @@ void send_file (int first_server_number, int second_server_number, int portion_n
 
       total_bytes_written_to_first_server += bytes_written_to_first_server;
       total_bytes_written_to_second_server += bytes_written_to_second_server;
-      printf("This is how many bytes were just written to server %d:%zu bytes and to server %d:%zubytes\n",first_server_number, bytes_written_to_first_server, second_server_number, bytes_written_to_second_server);
+      //printf("This is how many bytes were just written to server %d:%zu bytes and to server %d:%zubytes\n",first_server_number, bytes_written_to_first_server, second_server_number, bytes_written_to_second_server);
       portion_size_copy -= bytes_written_to_first_server;
-      printf("This is how many bytes have been read total: %zu\n", total_bytes_read_from_file);
-      printf("This is how many bytes have been written total to server %d: %zu and to server %d:%zu\n", first_server_number, total_bytes_written_to_first_server, second_server_number, total_bytes_written_to_second_server);
-      printf("This is how many bytes we have left to read/write from the portion: %zu\n", portion_size_copy);
+      //printf("This is how many bytes have been read total: %zu\n", total_bytes_read_from_file);
+      //printf("This is how many bytes have been written total to server %d: %zu and to server %d:%zu\n", first_server_number, total_bytes_written_to_first_server, second_server_number, total_bytes_written_to_second_server);
+      //printf("This is how many bytes we have left to read/write from the portion: %zu\n", portion_size_copy);
     }
     else {
       //printf("&& Portion should now fit into buffer...\n");
@@ -393,7 +416,7 @@ void send_file (int first_server_number, int second_server_number, int portion_n
       memset(&data_buffer_server_two, 0, sizeof(data_buffer_server_two));
       bytes_read_from_file = fread(data_buffer, 1, portion_size_copy, user_file);
       memcpy(&data_buffer_server_two, &data_buffer, sizeof(data_buffer_server_two));
-      printf("This is how many bytes were read from the file %zu bytes\n", bytes_read_from_file);
+      //printf("This is how many bytes were read from the file %zu bytes\n", bytes_read_from_file);
       total_bytes_read_from_file += bytes_read_from_file;
       bytes_written_to_first_server = send(server_one, data_buffer, bytes_read_from_file, 0);
       bytes_written_to_second_server = send(server_two, data_buffer_server_two, bytes_read_from_file, 0);
@@ -403,18 +426,17 @@ void send_file (int first_server_number, int second_server_number, int portion_n
         printf("Error with writing bytes to server %d\n", second_server_number);
       total_bytes_written_to_first_server += bytes_written_to_first_server;
       total_bytes_written_to_second_server += bytes_written_to_second_server;
-      printf("This is how many bytes were just written to server %d:%zu bytes and to server %d:%zubytes\n",first_server_number, bytes_written_to_first_server, second_server_number, bytes_written_to_second_server);
-      printf("This is how many bytes have been read total: %zu\n", total_bytes_read_from_file);
-      printf("This is how many bytes have been written total to server %d: %zu and to server %d:%zu\n", first_server_number, total_bytes_written_to_first_server, second_server_number, total_bytes_written_to_second_server);
-      printf("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
+      //printf("This is how many bytes were just written to server %d:%zu bytes and to server %d:%zubytes\n",first_server_number, bytes_written_to_first_server, second_server_number, bytes_written_to_second_server);
+      //printf("This is how many bytes have been read total: %zu\n", total_bytes_read_from_file);
+      //printf("This is how many bytes have been written total to server %d: %zu and to server %d:%zu\n", first_server_number, total_bytes_written_to_first_server, second_server_number, total_bytes_written_to_second_server);
     }
     first_server_message_size = recv(server_one, first_server_message_buffer, 1024, 0);
     second_server_message_size = recv(server_two, second_server_message_buffer, 1024, 0);
-    printf("Server #%d: %s\n",first_server_number,first_server_message_buffer );
-    printf("Server #%d: %s\n",second_server_number,second_server_message_buffer );
+    printf("Server #%d: %s ||  Server #%d: %s\n",first_server_number,first_server_message_buffer, second_server_number, second_server_message_buffer );
 
   }
   printf("All done with sending from client\n");
+    printf("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n\n");
   close(server_one);
   close(server_two);
 }
@@ -476,8 +498,14 @@ void construct_getpn_header(char *filename, struct ClientFileContent *params, ch
 /*-------------------------------------------------------------------------------------------
  * construct_get_header - this function is responsible for assembling the put request header
  *-------------------------------------------------------------------------------------------*/
-void construct_get_header(char *filename, struct ClientFileContent *params, char *header) 
+void construct_get_header(char *filename, struct ClientFileContent *params, char *header, int port_number) 
 {
+  char server_number_char[2];
+  int server_number;
+
+  // Set up the filename by adding server number, a dot, and the original filename passed in
+  server_number = port_number - 10000;
+  sprintf(server_number_char, "%d", server_number);
   strcpy(header, "&**&STXGET ");
   strcat(header, filename);
   strcat(header, "\n");
@@ -504,6 +532,7 @@ void construct_list_header(struct ClientFileContent *params, char *header)
 int handle_list (char *get_command, struct ClientFileContent *params, struct FileDistributionCombination *matrix){
   printf("Hello form handle_list\n");
   printf("1.txt \n 2.txt \n 3.txt");
+  return 0;
 }
 /*--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  * COMPLETE - parse_client_conf_file - this function takes in a file name and the client params struct, and will popuate the struct after parsing and extracting info from the dfc.conf file 

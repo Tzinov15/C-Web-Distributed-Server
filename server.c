@@ -22,10 +22,9 @@ int main(int argc, char ** argv)
 
   parse_server_conf_file(&user_pass);
 
-  int main_socket, cli, pid, port_number;
+  int main_socket, pid, port_number;
   port_number = atoi(argv[2]);
   struct sockaddr_in client;
-  unsigned int sockaddr_len = sizeof(struct sockaddr_in);
 
   /* Read in conf file and populate struct */
 
@@ -75,7 +74,7 @@ void parse_server_conf_file(struct Username_Passwords *name_password) {
 
   /* file pointer for our dfs.conf file */
   FILE *config_file;
-  char *leftover, read_line[200];
+  char read_line[200];
 
   /* check if file exists */
   if (stat (filename, &buffer) != 0) {
@@ -119,9 +118,9 @@ void parse_server_conf_file(struct Username_Passwords *name_password) {
  * validate_user - this function will take the username and passed into it, validate that the two match with the dfs.conf record, and return a 0 or a 1 based on the result
  *--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- */
 int validate_user(char *username, char *password, struct Username_Passwords *name_password) {
-  printf("||>> Hello from validate_user\n");
-  printf("    This is the username that was passed to me%s\n", username);
-  printf("    This is the password that was passed to me%s\n", password);
+  //printf("||>> Hello from validate_user\n");
+  //printf("    This is the username that was passed to me%s\n", username);
+  //printf("    This is the password that was passed to me%s\n", password);
 
 
   int i;
@@ -129,14 +128,14 @@ int validate_user(char *username, char *password, struct Username_Passwords *nam
   {
     if (strncmp(name_password->username[i], username, strlen(username)) == 0)
     {
-      printf("We have a matching username!...\n");
+      //printf("We have a matching username!...\n");
       if (strncmp(name_password->password[i], password, strlen(password)) == 0) {
-        printf("We have a matching password!...\n");
+        //printf("We have a matching password!...\n");
         return 0;
       }
     }
   }
-  printf("User and password did not match\n");
+  //printf("User and password did not match\n");
   return 1;
 }
 
@@ -144,7 +143,7 @@ int validate_user(char *username, char *password, struct Username_Passwords *nam
  * parse_request - this function will be responsible for taking in the request from the client, parsing out the elements of the body and header, then populating the respective stirngs that were passed in
  *--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- */
 int parse_message_header(char *file_content, char *username, char *password, char *file_name, unsigned long *header_size, unsigned long *body_size, char *method) {
-  printf("||>> Hello from parse_request\n");
+  //printf("||>> Hello from parse_request\n");
   char header_start_string[13];
   char *ptr;
 
@@ -189,7 +188,13 @@ int parse_message_header(char *file_content, char *username, char *password, cha
       strcpy(method, "GET");
       return 1;
     }
-
+    if ( (strncmp(header_start_string, "&**&STXLIST", 10)) == 0) {
+      printf("  LIST request\n");
+      strcpy(method, "LIST");
+      return 1;
+    }
+    else
+      return 0;
   }
   else {
     printf("  Regular Body\n");
@@ -201,9 +206,9 @@ int parse_message_header(char *file_content, char *username, char *password, cha
  * create_file_from_portion - this function will take in the name of the file, and its body, and create a new file under the correct folder for the respective server number and user
  *--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- */
 void create_file_from_portion(char *file_name, char *body, int port_number, char *user_name) {
-  printf("||>> Hello from create_file_from_portion\n");
-  printf("    This is the file_name that was passed to me: %s\n", file_name);
-  printf("    This is the body that was passed to me: \n%s\n", body);
+  //printf("||>> Hello from create_file_from_portion\n");
+  //printf("    This is the file_name that was passed to me: %s\n", file_name);
+  //printf("    This is the body that was passed to me: \n%s\n", body);
   char new_file_name[strlen(file_name) + 16];
   memset(&new_file_name, 0, sizeof(new_file_name));
   char directory_name[16];
@@ -266,13 +271,12 @@ void client_handler(int client, int port_number, struct Username_Passwords *name
   ssize_t read_size, total_bytes_read;
   total_bytes_read = 0;
   char client_message[1280], body[1024], username[64], password[64], file_name[64];
-  int is_header;
   unsigned long header_size = 0, body_size = 0,  total_size = 1;
 
   char incorrect_password_message[] = "Invalid Username/Password. Please try again";
-  char success_message[] = "File writing successful!";
-  char header_ack_message[] = "Recieved your header!! User/Pass authorized!";
-  char get_response_message[] = "Your file has been retreived";
+  char success_message[] = "File writing successful";
+  char header_ack_message[] = "Recieved your header. User/Pass authorized";
+  //char get_response_message[] = "Your file has been retreived";
   char request_method[6];
   memset(&request_method, 0, sizeof(request_method));
   // this array of strings wilh hold the path locations of file poritons 1-4
@@ -305,7 +309,7 @@ void client_handler(int client, int port_number, struct Username_Passwords *name
   }
   if (strncmp(request_method, "GETPN", 5) == 0)
   {
-    printf("Hello from the getpn handler from the server. Waiting for ack from client so that we can start sendig...\n");
+    //printf("Hello from the getpn handler from the server. Waiting for ack from client so that we can start sendig...\n");
 
     char client_ready_for_pns_message_buffer[64];
     ssize_t client_ready_for_pns_size;
@@ -320,7 +324,6 @@ void client_handler(int client, int port_number, struct Username_Passwords *name
     sprintf(server_number_char, "%d", server_number);
     strncat(server_name, server_number_char, 2);
 
-    char portion_number_char[2];
     char getpn_response_message[64];
     strcpy(getpn_response_message, "Portions: ");
 
@@ -333,7 +336,7 @@ void client_handler(int client, int port_number, struct Username_Passwords *name
     int j = 0;
     for (j = 0; j < 2; j++)
     {
-      printf("These are the portion numbers extract from server %d: %d\n", port_number, *(portion_numbers+j));
+      //printf("These are the portion numbers extract from server %d: %d\n", port_number, *(portion_numbers+j));
       sprintf(server_number_char, "%d", *(portion_numbers+j));
       strncat(getpn_response_message, server_number_char, 2);
       strncat(getpn_response_message, " ", 1);
@@ -351,7 +354,7 @@ void client_handler(int client, int port_number, struct Username_Passwords *name
     char dfs_path[sizeof(generic_dfs_folder_name) + 64];
     memset(&dfs_path, 0, sizeof(dfs_path));
     snprintf(dfs_path, sizeof(dfs_path), generic_dfs_folder_name, server_name, username);
-    int i, server_number;
+    int  server_number;
     server_number = port_number - 10000;
     char server_number_char[2];
     sprintf(server_number_char, "%d", server_number);
@@ -359,41 +362,41 @@ void client_handler(int client, int port_number, struct Username_Passwords *name
     memset(&server_name, 0, sizeof(server_name));
     strncpy(server_name, "DFS", 3);
     strncat(server_name, server_number_char, 2);
-    printf("We have a GET request that we need to deal with!!\n");
+    //printf("We have a GET request that we need to deal with!!\n");
 
     find_file_portions(file_name, dfs_path, locations);
     /*if ( (are_file_portions_ready) == 0) {
       printf("Yay! Accumulated enough file portions to reconstruct file\n");
       send_back_file(locations, client);
       return;
-    }
-    send(client, get_response_message, sizeof(get_response_message), 0);
-    else
+      }
+      send(client, get_response_message, sizeof(get_response_message), 0);
+      else
       printf("Not enough parts have been accumulated, need to collect more servers...\n");
-    */
+      */
   }
   if (strncmp(request_method, "PUT", 3) == 0)
   {
-    printf("We have a PUT request that we need to deal with!!\n");
-
-  }
-  total_bytes_read += read_size;
-  printf("Just read this many bytes: %zu\n", read_size);
-  printf("Total read bytes: %zu\n", total_bytes_read);
-  memset(&client_message, 0, sizeof(client_message));
-
-  while (total_bytes_read != total_size) {
-    read_size = recv(client, client_message, 1280, 0);
-    printf("Just read this many bytes: %zu\n", read_size);
+    //printf("We have a PUT request that we need to deal with!!\n");
     total_bytes_read += read_size;
-    printf("This is what I just read from the client: \n%s\n", client_message);
-    create_file_from_portion(file_name, client_message, port_number, username);
-
-    total_size = header_size + body_size;
+    //printf("Just read this many bytes: %zu\n", read_size);
+    //printf("Total read bytes: %zu\n", total_bytes_read);
     memset(&client_message, 0, sizeof(client_message));
-    printf("This is the total bytes read: %zu\n", total_bytes_read);
-    printf("This is the total size of the portion %zu\n", total_size);
-    send(client, success_message, sizeof(success_message), 0);
+
+    while (total_bytes_read != total_size) {
+      read_size = recv(client, client_message, 1280, 0);
+     // printf("Just read this many bytes: %zu\n", read_size);
+      total_bytes_read += read_size;
+      //printf("This is what I just read from the client: \n%s\n", client_message);
+      create_file_from_portion(file_name, client_message, port_number, username);
+
+      total_size = header_size + body_size;
+      memset(&client_message, 0, sizeof(client_message));
+      //printf("This is the total bytes read: %zu\n", total_bytes_read);
+      //printf("This is the total size of the portion %zu\n", total_size);
+      send(client, success_message, sizeof(success_message), 0);
+    }
+
   }
 }
 
@@ -425,7 +428,6 @@ int * find_file_portions(char *file_name,  char *directory_path, struct FilePort
   if (dp != NULL)
   {
     while ( (ep = readdir (dp)) ) {
-      puts (ep->d_name);
       if ( (strstr(ep->d_name, file_name)) != NULL)
       {
         //printf("We have a match on the files!!\n");
