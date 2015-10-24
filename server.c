@@ -349,6 +349,15 @@ void client_handler(int client, int port_number, struct Username_Passwords *name
   }
   if (strncmp(request_method, "GET", 3) == 0)
   {
+    printf("This is the parsed filename from the header, no idea if its going to work: %s\n", file_name);
+    char client_ready_for_get_body_message_buffer[64];
+    ssize_t client_ready_for_get_body_size;
+    client_ready_for_get_body_size = recv(client, client_ready_for_get_body_message_buffer, 64, 0);
+    printf("Client: %s\n", client_ready_for_get_body_message_buffer);
+
+    // start sending data to client
+
+    /*
     char server_name[8];
     char generic_dfs_folder_name [] = "%s/%s/";
     char dfs_path[sizeof(generic_dfs_folder_name) + 64];
@@ -365,7 +374,7 @@ void client_handler(int client, int port_number, struct Username_Passwords *name
     //printf("We have a GET request that we need to deal with!!\n");
 
     find_file_portions(file_name, dfs_path, locations);
-    /*if ( (are_file_portions_ready) == 0) {
+    if ( (are_file_portions_ready) == 0) {
       printf("Yay! Accumulated enough file portions to reconstruct file\n");
       send_back_file(locations, client);
       return;
@@ -412,7 +421,6 @@ int are_file_portions_ready (struct FilePortionLocations *locations) {
   }
   return 0;
 }
-
 
 int * find_file_portions(char *file_name,  char *directory_path, struct FilePortionLocations *locations)
 {

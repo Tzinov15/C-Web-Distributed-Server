@@ -131,26 +131,33 @@ int handle_get (char *get_command, struct ClientFileContent *params, struct File
     else
       printf("Not enough portions yet...\n\n\n");
     memset(&server_message_buffer, 0, sizeof(server_message_buffer));
-    sleep(2);
     close(server);
   }
 
-  printf("Yay we left the for loop!!!\n");
-  /*
-  char message_header[256];
+  printf("Yay we left the for loop!!!\n\n\n");
+  char get_header[256];
 
-  int k;
+  char ready_for_body_ack[] = "I am ready for the portion body";
+  ssize_t server_get_header_ack_size;
+  char server_get_header_ack_buffer[64];
   int a_server;
-  for (k = 0; k < 4; k++)
+  int y;
+  
+  for (y = 0; y < 4; y++)
   {
-    construct_get_header(file_name, params, message_pn_header, locations->portion_locations[k][0]);
-    a_server = create_socket_to_server(locations->portion_locations[k][1], params);
-    if ( (send(server, message_header, strlen(message_header), 0)) == -1)
-      printf("Error with sending the actual GET header to the first server");
+    construct_get_header(file_name, params, get_header, locations->portion_locations[y][1], y);
+    printf("This our get header so far %s\n", get_header);
+    a_server = create_socket_to_server(locations->portion_locations[y][1], params);
+    if ( (send(a_server, get_header, strlen(get_header), 0)) == -1)
+      printf("Error with sending the actual GET header to the server");
+    server_get_header_ack_size = recv(a_server, server_get_header_ack_buffer, 64, 0);
+    printf("Server: %s\n",server_get_header_ack_buffer );
+    if ( (send(a_server, ready_for_body_ack, strlen(ready_for_body_ack), 0)) == -1)
+      printf("Error with sending the thumbs up ack to the server");
+    close(a_server);
 
-
+    // start receiving data from server
   }
-  */
   return 0;
 }
 
@@ -498,16 +505,33 @@ void construct_getpn_header(char *filename, struct ClientFileContent *params, ch
 /*-------------------------------------------------------------------------------------------
  * construct_get_header - this function is responsible for assembling the put request header
  *-------------------------------------------------------------------------------------------*/
-void construct_get_header(char *filename, struct ClientFileContent *params, char *header, int port_number) 
+void construct_get_header(char *filename, struct ClientFileContent *params, char *header, int server_number, int portion_number) 
 {
-  char server_number_char[2];
-  int server_number;
+  // the char buffer that will hold our constructed file path location that we will be sent to the server as part of our header
+  char absolute_file_portion_location[256];
+  memset(&absolute_file_portion_location, 0, sizeof(absolute_file_portion_location));
 
-  // Set up the filename by adding server number, a dot, and the original filename passed in
-  server_number = port_number - 10000;
+  // convert the server numeber into a char
+  char server_number_char[2];
   sprintf(server_number_char, "%d", server_number);
+
+  // convert the portion numeber into a char
+  char portion_number_char[2];
+  sprintf(portion_number_char, "%d", portion_number+1);
+
+
+  strcpy(absolute_file_portion_location, ".");
+  strcat(absolute_file_portion_location, server_number_char);
+  strcat(absolute_file_portion_location, ".");
+  strcat(absolute_file_portion_location, filename);
+  strcat(absolute_file_portion_location, ".");
+  strcat(absolute_file_portion_location, portion_number_char);
+
+
+
+
   strcpy(header, "&**&STXGET ");
-  strcat(header, filename);
+  strcat(header, absolute_file_portion_location);
   strcat(header, "\n");
   strcat(header, params->username);
   strcat(header, "\n");

@@ -49,7 +49,7 @@ void send_to_server(char *message, int server_number, struct ClientFileContent *
 
 void construct_put_header(char *filename, char *filesize, struct ClientFileContent *params, char *header);
 void construct_getpn_header(char *filename, struct ClientFileContent *params, char *header);
-void construct_get_header(char *filename, struct ClientFileContent *params, char *header, int port_number);
+void construct_get_header(char *filename, struct ClientFileContent *params, char *header, int server_number, int portion_number);
 void construct_list_header(struct ClientFileContent *params, char *header);
 
 void deleteSubstring(char *original_string,const char *sub_string);
