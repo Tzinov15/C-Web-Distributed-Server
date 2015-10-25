@@ -1,0 +1,17 @@
+Alex Tzinov
+Distributed File Server in C
+Network Systems 
+Fall 2015
+
+
+to build:
+  make
+
+to run servers:
+  ./server DFS1/ 10001
+  ./server DFS2/ 10002
+  ./server DFS3/ 10003
+  ./server DFS4/ 10004
+
+to run client:
+  ./client dfc.conf
