@@ -642,6 +642,7 @@ void construct_list_header(struct ClientFileContent *params, char *header)
  *------------------------------------------------------------------------------------------------------- */
 int handle_list (char *get_command, struct ClientFileContent *params, struct FileDistributionCombination *matrix){
   printf("Hello form handle_list\n");
+  char thumbs_up_ack[] = "I'm ready for the file list!";
   // setup and populate the header for the put request
   char message_header[256];
   int server;
@@ -649,6 +650,15 @@ int handle_list (char *get_command, struct ClientFileContent *params, struct Fil
   printf("This is our complteded list header : %s\n", message_header);
   server = create_socket_to_server(1, params);
   send(server, message_header, strlen(message_header), 0);
+  char server_list_header_ack_buffer[1024];
+  ssize_t server_list_header_ack_size;
+  server_list_header_ack_size = recv(server, server_list_header_ack_buffer, 1024, 0);
+  printf("Server: %s\n", server_list_header_ack_buffer);
+  send(server, thumbs_up_ack, strlen(thumbs_up_ack), 0);
+  char server_list_response_buffer[1024];
+  ssize_t server_list_response_size;
+  server_list_response_size = recv(server, server_list_header_ack_buffer, 1024, 0);
+  printf("Server: %s\n", server_list_response_buffer);
   return 0;
 }
 /*--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------

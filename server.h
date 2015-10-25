@@ -54,7 +54,7 @@ struct TextfileData {
 };
 
 /* Function Declarations */
-void construct_file_list_body(char *user_name);
+void construct_file_list_body(char *user_name, char *list_response_body);
 void construct_get_response_header(char *file_name, char *get_response_header);
 int * find_file_portions(char *file_name,  char *directory_path, struct FilePortionLocations *locations);
 void parse_server_conf_file(struct Username_Passwords *name_password);

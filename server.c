@@ -323,8 +323,13 @@ void client_handler(int client, int port_number, struct Username_Passwords *name
     memset(&client_ready_for_list_files_message_buffer, sizeof(client_ready_for_list_files_message_buffer), 0);
     ssize_t client_ready_for_list_files_size;
 
-    //client_ready_for_list_files_size = recv(client, client_ready_for_list_files_message_buffer, 64, 0);
-    construct_file_list_body(username);
+    client_ready_for_list_files_size = recv(client, client_ready_for_list_files_message_buffer, 64, 0);
+    printf("Client: %s\n", client_ready_for_list_files_message_buffer);
+    char list_response_body[1024];
+    memset(&list_response_body, sizeof(list_response_body), 0);
+    construct_file_list_body(username, list_response_body);
+    printf("This is the list response body that we have made so far: \n%s\n", list_response_body);
+    send(client, list_response_body, strlen(list_response_body), 0);
 
   }
   // if the user has a sent a request to get the server portion numbers of a particular file
@@ -469,15 +474,10 @@ void client_handler(int client, int port_number, struct Username_Passwords *name
   }
 }
 
-void construct_file_list_body(char *user_name) {
+void construct_file_list_body(char *user_name, char *list_response_body) {
 
+  strcpy(list_response_body, "File List: \n");
   printf("Hello from list_body building\n");
-  char folder_path[32];
-  memset(&folder_path, 0, sizeof(folder_path));
-  strcpy(folder_path, "DFS1/");
-  strcat(folder_path, user_name);
-  strcat(folder_path, "/");
-  printf("This is our first constructed file path (via strcpy, strcat): %s\n", folder_path);
 
   char generic_dfs_folder_name [] = "%s/%s/";
   char dfs_path[sizeof(generic_dfs_folder_name) + 64];
@@ -494,8 +494,14 @@ void construct_file_list_body(char *user_name) {
   memset(&truncated_file_name, 0, sizeof(truncated_file_name));
 
   int counter = 0;
+  int current_file_count = 0;
+  int file_already_exists_in_list = 0;
+
+
+  char unique_file_list[10][128];
 
   dp = opendir (dfs_path);
+  int i;
   if (dp != NULL)
   {
     while ( (ep = readdir (dp)) ) {
@@ -504,13 +510,29 @@ void construct_file_list_body(char *user_name) {
         continue;
       }
       strcpy(file_name, ep->d_name);
-      printf("This is the name of our file name: %s\n", file_name);
-      printf("This is the length of our file name: %lu\n", strlen(file_name));
       strcpy(truncated_file_name, file_name+3);
-      printf("This is our file name without the first three characters: %s\n", truncated_file_name);
       truncated_file_name[strlen(truncated_file_name)-1] = 0;
-      truncated_file_name[strlen(truncated_file_name)-2] = 0;
-      printf("This is our file name without the first three characters and without the last two: %s\n", truncated_file_name);
+      truncated_file_name[strlen(truncated_file_name)-1] = 0;
+      printf("File name: %s\n", truncated_file_name);
+
+      for (i = 0; i < 10; i++) {
+        file_already_exists_in_list = 0;
+        if ( (strncmp(unique_file_list[i], truncated_file_name, strlen(truncated_file_name))) == 0) {
+          printf("we have matching files, no need to add this one\n");
+          file_already_exists_in_list = 1;
+          break;
+        }
+        else {
+          printf("This file name was not found in our list, time to continue looking...\n");
+        }
+      }
+      if (file_already_exists_in_list == 0) {
+        printf("This filename was never found in our list, we must add it, and increment the number of current files\n");
+        strcpy(unique_file_list[current_file_count], truncated_file_name);
+        current_file_count++;
+        strcat(list_response_body, truncated_file_name);
+        strcat(list_response_body, "\n");
+      }
     }
     (void) closedir (dp);
   }
