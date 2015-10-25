@@ -473,7 +473,6 @@ int handle_put (char *put_command, struct ClientFileContent *params, struct File
       printf("Invalid hash value, there must be an issue in the hash calc function\n" );
   }
 
-  /*
      printf("    These are the values of the server_location\n");
      printf("      File Portion 1 going to server #%d and server #%d\n", server_location_array[0], server_location_array[1]);
      printf("      File Portion 2 going to server #%d and server #%d\n", server_location_array[2], server_location_array[3]);
@@ -481,7 +480,6 @@ int handle_put (char *put_command, struct ClientFileContent *params, struct File
      printf("      File Portion 4 going to server #%d and server #%d\n", server_location_array[6], server_location_array[7]);
      printf("==============================================================================================\n");
      printf("==============================================================================================\n\n");
-     */
   // This will call the send_file command which will send portion one to the servers designated to receive portion 1
   send_file(server_location_array[0], server_location_array[1], 1, portion_one_size, users_file, params, portion_one_filename);
 
@@ -500,6 +498,9 @@ int handle_put (char *put_command, struct ClientFileContent *params, struct File
  * COMPLETE - send_file - this function will actually open up the correct sockets, send the header, and implement the send, receive ack, send again setup with the server
  *---------------------------------------------------------------------------------------------------------------------------------------------------------------------- */
 void send_file (int first_server_number, int second_server_number, int portion_number, ssize_t portion_size, FILE *user_file, struct ClientFileContent *params, char *portion_file_name) {
+
+  printf("This was the first server number passed into to me: %d\n", first_server_number);
+  printf("This was the second server number passed into to me: %d\n", second_server_number);
 
   // set up the size variables that will hold the return values of all the calls to fread and send
   ssize_t bytes_read_from_file, total_bytes_read_from_file, bytes_written_to_first_server,total_bytes_written_to_first_server, bytes_written_to_second_server, total_bytes_written_to_second_server;
