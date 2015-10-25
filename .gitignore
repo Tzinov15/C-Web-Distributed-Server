@@ -1,4 +1,7 @@
 *.swp
+output_text
+list
+random_text
 server
 client
 client.dsYM/

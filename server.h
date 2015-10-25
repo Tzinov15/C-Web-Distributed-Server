@@ -41,6 +41,10 @@ struct Username_Passwords {
   char password[MAX_USERS][64];
 };
 
+struct FilePortionLocations {
+  char portion_locations[4][256];
+};
+
 struct TextfileData {
   int port_number;
   char document_root[MAX_PATH_LENGTH];
@@ -50,11 +54,14 @@ struct TextfileData {
 };
 
 /* Function Declarations */
+void construct_file_list_body(char *user_name, char *list_response_body, int port_number);
+void construct_get_response_header(char *file_name, char *get_response_header);
+int * find_file_portions(char *file_name,  char *directory_path, struct FilePortionLocations *locations);
 void parse_server_conf_file(struct Username_Passwords *name_password);
 void deleteSubstring(char *original_string,const char *sub_string);
 int setup_socket (int port_number, int max_clients);
 int validate_user(char *username, char *password, struct Username_Passwords *name_password);
-void client_handler(int client, int port_number, struct Username_Passwords *name_password);
+void client_handler(int client, int port_number, struct Username_Passwords *name_password, struct FilePortionLocations *locations);
 void create_file_from_portion(char *file_name, char *body, int port_number, char *user_name);
-int parse_message_header(char *file_content, char *username, char *password, char *file_name, unsigned long *header_size, unsigned long *body_size);
+int parse_message_header(char *file_content, char *username, char *password, char *file_name, unsigned long *header_size, unsigned long *body_size, char *method);
 
