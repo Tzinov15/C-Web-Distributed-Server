@@ -53,31 +53,36 @@ int main(int argc, char ** argv) {
 /*-------------------------------------------------------------------------------------------------------
  * handle_get - this function will be responsible for downloading the selected file from the DFS servers
  *------------------------------------------------------------------------------------------------------- */
+/*-------------------------------------------------------------------------------------------------------
+ * IMPORTANT: If handle get_returns a -2, this is not an internal error, but instead it indicates that 
+ * there are not enough running servers to recover the file that the user requested, so therfore the file
+ * cannot be downloaded for the user
+ *------------------------------------------------------------------------------------------------------- */
 int handle_get (char *get_command, struct ClientFileContent *params, struct FileDistributionCombination *matrix, struct FilePortionLocations *locations) {
 
-  int l;
   // Reset the values for the portion location matrix so that we start with zero of the necassary four portion locations
+  int l;
   for (l = 0; l < 4; l++)
   {
     locations->portion_locations[l][0] = 111;
     locations->portion_locations[l][1] = 111;
   }
-  /* Structs needed to be able to call the stat function which checks for file presence */
+  // Structs needed to be able to call the stat function which checks for file presence 
   struct stat;
-  /* file_name used in strtok_r to capture content after space, read_line is buffer that fgets writes to */
+  // file_name used in strtok_r to capture content after space, read_line is buffer that fgets writes to 
   char *file_name, *extra_args;
 
   /*-----------------------------------
    * Error Checking / Input Validation
    *----------------------------------- */
-  /* Extract the second word from the GET command (the filename) and strip it of newline character */
+  // Extract the second word from the GET command (the filename) and strip it of newline character 
   strtok_r(get_command, " ", &file_name);
   if (file_name == NULL) {
     printf("You have not specified a file to download. Please try again...\n");
     return 1;
   }
 
-  /* Extract any potential arguments following our file name which should not be there */
+  // Extract any potential arguments following our file name which should not be there 
   strtok_r(file_name, " ", &extra_args);
   if (extra_args != NULL) {
     printf("You have specified too many arguments. Please try again...\n");
@@ -96,7 +101,6 @@ int handle_get (char *get_command, struct ClientFileContent *params, struct File
   char server_message_buffer[1024];
   ssize_t server_message_size;
   construct_getpn_header(file_name, params, message_pn_header);
-  //printf("This is our get request so far: \n%s\n",message_pn_header );
 
   int i;
   int server;
@@ -105,25 +109,29 @@ int handle_get (char *get_command, struct ClientFileContent *params, struct File
   // If we do not have have enough, it will continue on to the next server 
   for (i = 1; i < 5; i++)
   {
-    server = create_socket_to_server(i, params);
+    if ( (server = create_socket_to_server(i, params)) == -1) {
+      continue;
+    }
 
-    if ( (send(server, message_pn_header, strlen(message_pn_header), 0)) == -1)
-      printf("Error with sending the header to the first server");
+    if ( (send(server, message_pn_header, strlen(message_pn_header), 0)) == -1) {
+      printf("Error with sending the header to server %d\n", i);
+      continue;
+    }
     server_header_ack_size = recv(server, server_header_ack_buffer, 1024, 0);
     printf("Server: %s\n",server_header_ack_buffer );
 
-    if ( (send(server, thumbs_up_ack, strlen(thumbs_up_ack), 0)) == -1)
-      printf("Error with sending the thumbs up ack to the server");
+    if ( (send(server, thumbs_up_ack, strlen(thumbs_up_ack), 0)) == -1) {
+      printf("Error with sending the thumbs up ack to server %d\n", i);
+      continue;
+    }
     server_message_size = recv(server, server_message_buffer, 1024, 0);
     printf("Server: %s\n",server_message_buffer );
 
-    if ( (send(server, recv_pn_response_ack, strlen(recv_pn_response_ack), 0)) == -1)
-      printf("Error with sending the ack to the server");
+    if ( (send(server, recv_pn_response_ack, strlen(recv_pn_response_ack), 0)) == -1) {
+      printf("Error with sending the ack to server %d\n", i);
+      continue;
+    }
     update_locations_array(server_message_buffer, locations,i);
-    //printf("Portion 1: (portion number) %d (server number) %d\n", locations->portion_locations[0][0], locations->portion_locations[0][1]);
-    //printf("Portion 2: (portion number) %d (server number) %d\n", locations->portion_locations[1][0], locations->portion_locations[1][1]);
-    //printf("Portion 3: (portion number) %d (server number) %d\n", locations->portion_locations[2][0], locations->portion_locations[2][1]);
-    //printf("Portion 4: (portion number) %d (server number) %d\n", locations->portion_locations[3][0], locations->portion_locations[3][1]);
     if ( (check_locations_array(locations)) == 0) {
       printf("We have enough portions!! Time to start retreving actual file content!\n");
       break;
@@ -133,7 +141,11 @@ int handle_get (char *get_command, struct ClientFileContent *params, struct File
     close(server);
   }
 
-  printf("Yay we left the for loop!!!\n\n\n");
+  if ( (check_locations_array(locations)) != 0) {
+    printf("Uh oh, it appears that even after going all servers we still don't have enough portions for build the file...\n");
+    printf("File is incomplete\n");
+    return -2;
+  }
   char get_header[256];
 
   char ready_for_header_ack[] = "I am ready for the portion header";
@@ -158,34 +170,37 @@ int handle_get (char *get_command, struct ClientFileContent *params, struct File
   }
   for (y = 0; y < 4; y++)
   {
-    printf("Starting the process for getting portion number %d\n", locations->portion_locations[y][0]);
     construct_get_header(file_name, params, get_header, locations->portion_locations[y][1], y);
-    a_server = create_socket_to_server(locations->portion_locations[y][1], params);
-    if ( (send(a_server, get_header, strlen(get_header), 0)) == -1)
-      printf("Error with sending the actual GET header to the server");
+    if ( (a_server = create_socket_to_server(locations->portion_locations[y][1], params)) == -1) {
+      continue;
+    }
+    if ( (send(a_server, get_header, strlen(get_header), 0)) == -1) {
+      printf("Error with sending the actual GET header to server \n");
+      continue;
+    }
     server_get_header_ack_size = recv(a_server, server_get_header_ack_buffer, 64, 0);
     printf("Server: %s\n",server_get_header_ack_buffer );
-    if ( (send(a_server, ready_for_header_ack, strlen(ready_for_header_ack), 0)) == -1)
-      printf("Error with sending the thumbs up ack for header to the server");
+    if ( (send(a_server, ready_for_header_ack, strlen(ready_for_header_ack), 0)) == -1) {
+      printf("Error with sending the thumbs up ack for header to server \n");
+      continue;
+    }
 
     unsigned long  body_size = 0;
     total_bytes_read_from_server = 0;
     portion_header_buffer_size = recv(a_server, portion_header_buffer, 1024, 0);
-    if ( (send(a_server, ready_for_body_ack, strlen(ready_for_body_ack), 0)) == -1)
-      printf("Error with sending the thumbs up ack for body to the server");
+    if ( (send(a_server, ready_for_body_ack, strlen(ready_for_body_ack), 0)) == -1) {
+      printf("Error with sending the thumbs up ack for body to server \n");
+      continue;
+    }
 
     get_portion_size(portion_header_buffer, &body_size);
 
     memset(&portion_body_buffer, 0, sizeof(portion_body_buffer));
-    printf("Starting the loop where we read from server, write to client. Current portion size is %zu\n", body_size);
     while (total_bytes_read_from_server != body_size)  {
       portion_body_buffer_size = recv(a_server, portion_body_buffer, 1024, 0);
-      printf("Just read this many bytes: %zu\n", portion_body_buffer_size);
       total_bytes_read_from_server += portion_body_buffer_size;
-      printf("This is what I just read from the client: \n%s\n", portion_body_buffer);
       fwrite(portion_body_buffer, 1, portion_body_buffer_size, user_file);
       memset(&portion_body_buffer, 0, sizeof(portion_body_buffer));
-      printf("This is the total bytes read: %zu\n", total_bytes_read_from_server);
       send(a_server, portion_body_ack, sizeof(portion_body_ack), 0);
     }
     close(a_server);
@@ -496,16 +511,17 @@ void send_file (int first_server_number, int second_server_number, int portion_n
  * COMPLTE - create_socket_to_server - this function is responsible for creating a socket connection using the passed in server number and conf sturct
  *---------------------------------------------------------------------------------------------------------------------------------------------------------- */
 int create_socket_to_server(int server_number, struct ClientFileContent *params) {
-  //printf("||>> Hello from create_socket_to_server\n");
   int sock;
   sock = socket(AF_INET, SOCK_STREAM, 0);
 
-  if (sock == -1)
+  if (sock == -1) {
     printf("Could not create socket\n");
+    return -1;
+  }
 
   struct sockaddr_in server;
   int port_number;
-  printf("    Creating socket to server #%d which has port_number %s", server_number, params->ports[server_number-1]);
+  printf("    Creating socket to server #%d which has port_number %s: ", server_number, params->ports[server_number-1]);
   port_number = atoi(params->ports[server_number-1]);
 
   server.sin_addr.s_addr = INADDR_ANY;
@@ -513,10 +529,16 @@ int create_socket_to_server(int server_number, struct ClientFileContent *params)
   server.sin_port = htons(port_number);
 
   if (connect(sock, (struct sockaddr *)&server, sizeof(server)) < 0){
-    perror("    connect failed. Error\n");
+    printf("  connect failed. Waiting one second and trying again...\n");
+    sleep(1);
+    if (connect(sock, (struct sockaddr *)&server, sizeof(server)) < 0){
+      printf("    connect failed again. Server %d is unavailable.\n", server_number);
+      return -1;
+    }
+    else
+      printf("  connected on second try\n");
   }
-  else
-    printf("    connected\n");
+  printf("  connect success\n");
   return sock;
 }
 /*-------------------------------------------------------------------------------------------
@@ -620,7 +642,13 @@ void construct_list_header(struct ClientFileContent *params, char *header)
  *------------------------------------------------------------------------------------------------------- */
 int handle_list (char *get_command, struct ClientFileContent *params, struct FileDistributionCombination *matrix){
   printf("Hello form handle_list\n");
-  printf("1.txt \n 2.txt \n 3.txt");
+  // setup and populate the header for the put request
+  char message_header[256];
+  int server;
+  construct_list_header(params, message_header);
+  printf("This is our complteded list header : %s\n", message_header);
+  server = create_socket_to_server(1, params);
+  send(server, message_header, strlen(message_header), 0);
   return 0;
 }
 /*--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------

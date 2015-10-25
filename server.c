@@ -158,9 +158,23 @@ int parse_message_header(char *file_content, char *username, char *password, cha
   strncpy(header_start_string, file_content, 12);
   header_start_string[12] = '\0';
   if ( (strncmp(header_start_string, "&**&STX", 7)) == 0) {
-    //printf("  Header Request!!\n\n");
+    printf("  Header Request!!");
     *header_size = strlen(file_content);
     token = strtok_r(file_content, "\n", &header_left_over);
+    if ( (strncmp(header_start_string, "&**&STXLIST", 11)) == 0) {
+      printf("  LIST request\n");
+      new_token = strtok(header_left_over, "\n");
+      printf("poop\n");
+      strcpy(username, new_token);
+      printf("poop\n");
+      new_token = strtok(NULL, "\n");
+      printf("poop\n");
+      strcpy(password, new_token);
+      printf("poop\n");
+      strcpy(method, "LIST");
+      printf("Does with list header parsing\n");
+      return 1;
+    }
     strncpy(backup_first_line, token, strlen(token));
     second_token = strtok(token, " ");
     second_token = strtok(NULL, " ");
@@ -186,11 +200,6 @@ int parse_message_header(char *file_content, char *username, char *password, cha
     if ( (strncmp(header_start_string, "&**&STXGET", 10)) == 0) {
       printf("  GET request\n");
       strcpy(method, "GET");
-      return 1;
-    }
-    if ( (strncmp(header_start_string, "&**&STXLIST", 10)) == 0) {
-      printf("  LIST request\n");
-      strcpy(method, "LIST");
       return 1;
     }
     else
@@ -270,33 +279,30 @@ void create_file_from_portion(char *file_name, char *body, int port_number, char
 void client_handler(int client, int port_number, struct Username_Passwords *name_password, struct FilePortionLocations *locations) {
   ssize_t read_size, total_bytes_read;
   total_bytes_read = 0;
+  // client messge is used to store the full original message from client, body is used to store just body. username, password, and file_name all store the respective information which is parsed from the header 
   char client_message[1280], body[1024], username[64], password[64], file_name[64];
-  unsigned long header_size = 0, body_size = 0,  total_size = 1;
-
-  char incorrect_password_message[] = "Invalid Username/Password. Please try again";
-  char success_message[] = "File writing successful";
-  char header_ack_message[] = "Recieved your header. User/Pass authorized";
-  //char get_response_message[] = "Your file has been retreived";
-  char request_method[6];
-  memset(&request_method, 0, sizeof(request_method));
-  // this array of strings wilh hold the path locations of file poritons 1-4
-
-  ssize_t client_ack_size;
-  char client_ack_message_buffer [64];
-  memset(&client_ack_message_buffer, 0, sizeof(client_ack_message_buffer));
   memset(&client_message, 0, sizeof(client_message));
   memset(&body, 0, sizeof(body));
 
+  unsigned long header_size = 0, body_size = 0,  total_size = 1;
+
+  // these are strings that we'll send in ACK messages to the client following certain messages received from the client
+  char incorrect_password_message[] = "Invalid Username/Password. Please try again";
+  char success_message[] = "File writing successful";
+  char header_ack_message[] = "Recieved your header. User/Pass authorized";
+  char request_method[6];
+  memset(&request_method, 0, sizeof(request_method));
+
+  // buffer and return ssize_t variables used to store acknowledgement from client
+  ssize_t client_ack_size;
+  char client_ack_message_buffer [64];
+  memset(&client_ack_message_buffer, 0, sizeof(client_ack_message_buffer));
+
   printf("======================\n");
   read_size = recv(client, client_message, 1280, 0);
+  // if this returns 1 (which it should), then the message is a header and we need to validate the user/pass combo and send a cofirmation or deny ACK message to the client
   if ((parse_message_header(client_message, username,  password, file_name, &header_size, &body_size, (char *)&request_method)) == 1) {
-    //printf("Just a header, no need to write to any file\n");
-    //printf("This was the method extracted from the header: %s\n", request_method);
-    //printf("This was the username extracted from the header: %s\n", username);
-    //printf("This was the password extracted from the header: %s\n", password);
-    //printf("This was the filename extracted from the header: %s\n", file_name);
     if ( ((validate_user(username, password, name_password))) == 0) {
-      //printf("Username and password match!!\n");
       send(client, header_ack_message, sizeof(header_ack_message), 0);
     }
     else {
@@ -307,143 +313,210 @@ void client_handler(int client, int port_number, struct Username_Passwords *name
   else {
     printf("Not the header, which is odd because it should be the header at this point \n");
   }
+ 
+  if (strncmp(request_method, "LIST", 4) ==0)
+  {
+    printf("We have a list method to deal with\n");
+
+    // buffer and return value ssize_t variables used to store thumbs up message from client telling the server to send the portion number message
+    char client_ready_for_list_files_message_buffer[64];
+    memset(&client_ready_for_list_files_message_buffer, sizeof(client_ready_for_list_files_message_buffer), 0);
+    ssize_t client_ready_for_list_files_size;
+
+    //client_ready_for_list_files_size = recv(client, client_ready_for_list_files_message_buffer, 64, 0);
+    construct_file_list_body(username);
+
+  }
+  // if the user has a sent a request to get the server portion numbers of a particular file
   if (strncmp(request_method, "GETPN", 5) == 0)
   {
-    //printf("Hello from the getpn handler from the server. Waiting for ack from client so that we can start sendig...\n");
-
+    // buffer and return value ssize_t variables used to store thumbs up message from client telling the server to send the portion number message
     char client_ready_for_pns_message_buffer[64];
+    memset(&client_ready_for_pns_message_buffer, sizeof(client_ready_for_pns_message_buffer), 0);
     ssize_t client_ready_for_pns_size;
+
+    // block and wait for the client to receive the password/user confirming ack and send back a thumbs up saying they're ready for the PN message
     client_ready_for_pns_size = recv(client, client_ready_for_pns_message_buffer, 64, 0);
     printf("Client: %s\n", client_ready_for_pns_message_buffer);
+
+    // create our server directory name by connecting "DFS" and our server numebr
     char server_name[8];
     memset(&server_name, 0, sizeof(server_name));
     strncpy(server_name, "DFS", 3);
+
+    // convert the port number of the current runnign server instance to the respective server number, copy it into a string, append it to our server_name
     int server_number;
     server_number = port_number - 10000;
     char server_number_char[2];
     sprintf(server_number_char, "%d", server_number);
     strncat(server_name, server_number_char, 2);
 
+    // getpn_response_message is the string that we are sending to the client as a response to their GETPN request
     char getpn_response_message[64];
     strcpy(getpn_response_message, "Portions: ");
 
+    // this will be the array of ints that will store the two portion numbers that we extract from each of the server folders
     int *portion_numbers;
+
+    // the following constructs the directory path that we search in for the file portion that the user specified
+    // the directory name is made up of the folder that the current port is operating under ("DFS" + port_number-10000) + the name of the current user (sent in header from client)
     char generic_dfs_folder_name [] = "%s/%s/";
     char dfs_path[sizeof(generic_dfs_folder_name) + 64];
     memset(&dfs_path, 0, sizeof(dfs_path));
     snprintf(dfs_path, sizeof(dfs_path), generic_dfs_folder_name, server_name, username);
+
+    // search the folder (specified by the above constructed file path), return the portion numebrs of the files parts found, append these poriton numbers to the message that we're sending to the client
     portion_numbers = find_file_portions(file_name, dfs_path, locations);
     int j = 0;
     for (j = 0; j < 2; j++)
     {
-      //printf("These are the portion numbers extract from server %d: %d\n", port_number, *(portion_numbers+j));
       sprintf(server_number_char, "%d", *(portion_numbers+j));
       strncat(getpn_response_message, server_number_char, 2);
       strncat(getpn_response_message, " ", 1);
 
     }
+    // send our message body to the client
     send(client, getpn_response_message, sizeof(getpn_response_message), 0);
+
+    // and wait for client to ackonowledge that they have received the message
     client_ack_size = recv(client, client_ack_message_buffer, 64, 0);
     printf("Client: %s\n", client_ack_message_buffer);
     return;
   }
   if (strncmp(request_method, "GET", 3) == 0)
   {
+    // buffer and ssize_t return value variables used to store the thumbs up ack message from the client saying they're ready to receive the get header from the server
     char client_ready_for_get_header_message_buffer[64];
     memset(&client_ready_for_get_header_message_buffer, 0, sizeof(client_ready_for_get_header_message_buffer));
     ssize_t client_ready_for_get_header_size;
 
+    // this is string that will be sent to the client as a preleminary header to the the actual body being sent from the server
     char get_response_header[32];
     memset(&get_response_header, 0, sizeof(get_response_header));
+    construct_get_response_header(file_name, get_response_header);
 
+    // buffer and ssize_t return value variables used to store the thumbs up ack message from the client saying they're ready to receive the actual portion body from the server
     char client_ready_for_get_body_message_buffer[64];
     memset(&client_ready_for_get_body_message_buffer, 0, sizeof(client_ready_for_get_body_message_buffer));
     ssize_t client_ready_for_get_body_size;
 
+    // block and wait for the client to acknowledge the password confirmation packet from the server and give the thumbs up that they're ready to receive the header
     client_ready_for_get_header_size = recv(client, client_ready_for_get_header_message_buffer, 64, 0);
     printf("Client: %s\n", client_ready_for_get_header_message_buffer);
-    construct_get_response_header(file_name, get_response_header);
-    printf("This is the get response header that we are sending to the client: %s\n", get_response_header);
+
+    // send the client the header for the get reeponse
     send(client, get_response_header, sizeof(get_response_header), 0);
+
+    // block and wait for the client to acknowledge the header message from the server and give the thumbs up that they're ready to receive the actual body of the portion
     client_ready_for_get_body_size = recv(client, client_ready_for_get_body_message_buffer, 64, 0);
     printf("Client: %s\n", client_ready_for_get_body_message_buffer);
 
+    // buffer and ssize_t return value variables used to store the ack message from the client saying that they have received the servers file portion and written it to their file
     char client_body_portion_ack_buffer[64];
+    memset(&client_body_portion_ack_buffer, 0, sizeof(client_body_portion_ack_buffer));
     ssize_t client_body_portion_ack_size;
 
+    // this is the buffer into which we read the file portion, and then from the buffer write it to the client socket
+    // this buffer gets emptied at the end of each read in case we have to read a bigger portion and the buffer needs to be reused
     char file_portion_reading_buffer[1024];
     memset(&file_portion_reading_buffer, 0, sizeof(file_portion_reading_buffer));
-    ssize_t read_bytes;
 
+    // open the file portion that we will be sending to the client
+    // the name of this file portion was extracted when parsing the GET request that the user sent
     FILE *portion_file;
     portion_file = fopen(file_name, "r");
     if (portion_file == NULL) {
       printf("Oops, error opening the file\n");
       exit(1);
     }
-    printf("Starting to read the file portion and send it to the client\n");
 
+    // variable that will keep track of how many bytes we read on each itertion
+    ssize_t read_bytes;
     while (!feof(portion_file)) {
+      // read from the portion file into the buffer
       read_bytes = fread(file_portion_reading_buffer, 1, 1024, portion_file);
+      // send to the client the portion
       send(client, file_portion_reading_buffer, read_bytes, 0);
+      // wait for a succesful acknowledgement from the client
       client_body_portion_ack_size = recv(client, client_body_portion_ack_buffer, 64, 0);
       printf("Client: %s\n", client_body_portion_ack_buffer);
+      // clear the buffer for potential reuses
       memset(&file_portion_reading_buffer, 0, sizeof(file_portion_reading_buffer));
     }
+    // close our file
     fclose(portion_file);
     printf("Server is done writting the file portion to the client\n");
 
-    // start sending data to client
-
-    /*
-    char server_name[8];
-    char generic_dfs_folder_name [] = "%s/%s/";
-    char dfs_path[sizeof(generic_dfs_folder_name) + 64];
-    memset(&dfs_path, 0, sizeof(dfs_path));
-    snprintf(dfs_path, sizeof(dfs_path), generic_dfs_folder_name, server_name, username);
-    int  server_number;
-    server_number = port_number - 10000;
-    char server_number_char[2];
-    sprintf(server_number_char, "%d", server_number);
-
-    memset(&server_name, 0, sizeof(server_name));
-    strncpy(server_name, "DFS", 3);
-    strncat(server_name, server_number_char, 2);
-    //printf("We have a GET request that we need to deal with!!\n");
-
-    find_file_portions(file_name, dfs_path, locations);
-    if ( (are_file_portions_ready) == 0) {
-      printf("Yay! Accumulated enough file portions to reconstruct file\n");
-      send_back_file(locations, client);
-      return;
-      }
-      send(client, get_response_message, sizeof(get_response_message), 0);
-      else
-      printf("Not enough parts have been accumulated, need to collect more servers...\n");
-      */
   }
   if (strncmp(request_method, "PUT", 3) == 0)
   {
-    //printf("We have a PUT request that we need to deal with!!\n");
+    // append to total bytes read the bytes that we already read in from the header parsing
     total_bytes_read += read_size;
-    //printf("Just read this many bytes: %zu\n", read_size);
-    //printf("Total read bytes: %zu\n", total_bytes_read);
     memset(&client_message, 0, sizeof(client_message));
 
     while (total_bytes_read != total_size) {
+      // read in content from the client
       read_size = recv(client, client_message, 1280, 0);
-     // printf("Just read this many bytes: %zu\n", read_size);
       total_bytes_read += read_size;
-      //printf("This is what I just read from the client: \n%s\n", client_message);
+      // create the file portion (or append to it) from the data that the client sent
       create_file_from_portion(file_name, client_message, port_number, username);
-
       total_size = header_size + body_size;
+      // clear buffer
       memset(&client_message, 0, sizeof(client_message));
-      //printf("This is the total bytes read: %zu\n", total_bytes_read);
-      //printf("This is the total size of the portion %zu\n", total_size);
+      // acknowledge the client that we have received the written the data
       send(client, success_message, sizeof(success_message), 0);
     }
   }
+}
+
+void construct_file_list_body(char *user_name) {
+
+  printf("Hello from list_body building\n");
+  char folder_path[32];
+  memset(&folder_path, 0, sizeof(folder_path));
+  strcpy(folder_path, "DFS1/");
+  strcat(folder_path, user_name);
+  strcat(folder_path, "/");
+  printf("This is our first constructed file path (via strcpy, strcat): %s\n", folder_path);
+
+  char generic_dfs_folder_name [] = "%s/%s/";
+  char dfs_path[sizeof(generic_dfs_folder_name) + 64];
+  memset(&dfs_path, 0, sizeof(dfs_path));
+  snprintf(dfs_path, sizeof(dfs_path), generic_dfs_folder_name, "DFS1", user_name);
+  printf("This is our second constructed file path (via snprintf): %s\n", dfs_path);
+
+  DIR *dp;
+  struct dirent *ep;
+  char file_name[256];
+  memset(&file_name, 0, sizeof(file_name));
+
+  char truncated_file_name[256];
+  memset(&truncated_file_name, 0, sizeof(truncated_file_name));
+
+  int counter = 0;
+
+  dp = opendir (dfs_path);
+  if (dp != NULL)
+  {
+    while ( (ep = readdir (dp)) ) {
+      if (counter < 2) {
+        counter ++;
+        continue;
+      }
+      strcpy(file_name, ep->d_name);
+      printf("This is the name of our file name: %s\n", file_name);
+      printf("This is the length of our file name: %lu\n", strlen(file_name));
+      strcpy(truncated_file_name, file_name+3);
+      printf("This is our file name without the first three characters: %s\n", truncated_file_name);
+      truncated_file_name[strlen(truncated_file_name)-1] = 0;
+      truncated_file_name[strlen(truncated_file_name)-2] = 0;
+      printf("This is our file name without the first three characters and without the last two: %s\n", truncated_file_name);
+    }
+    (void) closedir (dp);
+  }
+  else
+    printf("Couldn't open the directory");
+    
 }
 
 void construct_get_response_header(char *file_name, char *get_response_header) {
@@ -511,7 +584,6 @@ int * find_file_portions(char *file_name,  char *directory_path, struct FilePort
 
   return pns;
 }
-
 /*----------------------------------------------------------------------------------------------
  * setup_socket - allocate and bind a server socket using TCP, then have it listen on the port
  *---------------------------------------------------------------------------------------------- */
