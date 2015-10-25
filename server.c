@@ -327,7 +327,7 @@ void client_handler(int client, int port_number, struct Username_Passwords *name
 
     char list_response_body[1024];
     memset(&list_response_body, sizeof(list_response_body), 0);
-    construct_file_list_body(username, list_response_body);
+    construct_file_list_body(username, list_response_body, port_number);
     printf("This is the list response body that we have made so far: \n%s\n", list_response_body);
     send(client, list_response_body, strlen(list_response_body), 0);
 
@@ -474,14 +474,24 @@ void client_handler(int client, int port_number, struct Username_Passwords *name
   }
 }
 
-void construct_file_list_body(char *user_name, char *list_response_body) {
+void construct_file_list_body(char *user_name, char *list_response_body, int port_number) {
 
+
+  char server_number_char[2];
+  int server_number;
+
+  // Set up the filename by adding server number, a dot, and the original filename passed in
+  server_number = port_number - 10000;
+  sprintf(server_number_char, "%d", server_number);
+
+    
   strcpy(list_response_body, "File List: \n");
 
   char generic_dfs_folder_name [] = "%s/%s/";
   char dfs_path[sizeof(generic_dfs_folder_name) + 64];
   memset(&dfs_path, 0, sizeof(dfs_path));
-  snprintf(dfs_path, sizeof(dfs_path), generic_dfs_folder_name, "DFS1", user_name);
+  snprintf(dfs_path, sizeof(dfs_path), generic_dfs_folder_name, server_number_char, user_name);
+  printf("Inside of construct file_list_body on the server, this is the file name for the current dir: %s\n", dfs_path);
 
   DIR *dp;
   struct dirent *ep;

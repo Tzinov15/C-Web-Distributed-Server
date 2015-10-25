@@ -645,8 +645,23 @@ int handle_list (char *list_command, struct ClientFileContent *params, struct Fi
   char thumbs_up_ack[] = "I'm ready for the file list! ";
 
 
+  int all_servers_broken = 1;
   int server;
-  server = create_socket_to_server(1, params);
+  int q;
+  for (q = 1; q < 5; q++) {
+    if ( (server = create_socket_to_server(q, params)) == -2) {
+      printf("This is a broken server, cannot go to it for file list info\n");
+      continue;
+    }
+    else {
+      printf("Found a good server to go for list info. Server # %d\n", q);
+      all_servers_broken = 0;
+      break;
+    }
+  }
+
+  if (all_servers_broken == -1)
+    printf("None of the servers are up, cannot run LIST\n");
 
   char message_header[256];
   memset(message_header, 0, sizeof(message_header));
