@@ -32,7 +32,7 @@ int main(int argc, char ** argv) {
       break;
     }
     if (strncmp(user_input, "LIST", strlen("LIST")) == 0) {
-      handle_list(user_input, &client_params, &destination_matrix);
+      handle_list(user_input, &client_params, &destination_matrix, &locations);
     }
     if (strncmp(user_input, "PUT", strlen("PUT")) == 0) {
       handle_put(user_input, &client_params, &destination_matrix);
@@ -640,25 +640,74 @@ void construct_list_header(struct ClientFileContent *params, char *header)
 /*-------------------------------------------------------------------------------------------------------
  * handle_list - this function will be responsible for listing all the files available on the DFS servers
  *------------------------------------------------------------------------------------------------------- */
-int handle_list (char *get_command, struct ClientFileContent *params, struct FileDistributionCombination *matrix){
+int handle_list (char *list_command, struct ClientFileContent *params, struct FileDistributionCombination *matrix, struct FilePortionLocations *locations) {
   printf("Hello form handle_list\n");
-  char thumbs_up_ack[] = "I'm ready for the file list!";
-  // setup and populate the header for the put request
-  char message_header[256];
+  char thumbs_up_ack[] = "I'm ready for the file list! ";
+
+
   int server;
-  construct_list_header(params, message_header);
-  printf("This is our complteded list header : %s\n", message_header);
   server = create_socket_to_server(1, params);
-  send(server, message_header, strlen(message_header), 0);
+
+  char message_header[256];
+  memset(message_header, 0, sizeof(message_header));
+  construct_list_header(params, message_header);
+  send(server, message_header, sizeof(message_header), 0);
+
   char server_list_header_ack_buffer[1024];
+  memset(server_list_header_ack_buffer, 0, sizeof(server_list_header_ack_buffer));
   ssize_t server_list_header_ack_size;
+
   server_list_header_ack_size = recv(server, server_list_header_ack_buffer, 1024, 0);
   printf("Server: %s\n", server_list_header_ack_buffer);
-  send(server, thumbs_up_ack, strlen(thumbs_up_ack), 0);
+
+  send(server, thumbs_up_ack, sizeof(thumbs_up_ack), 0);
+
   char server_list_response_buffer[1024];
+  memset(server_list_response_buffer, 0, sizeof(server_list_response_buffer));
   ssize_t server_list_response_size;
-  server_list_response_size = recv(server, server_list_header_ack_buffer, 1024, 0);
+
+  server_list_response_size = recv(server, server_list_response_buffer, 1024, 0);
   printf("Server: %s\n", server_list_response_buffer);
+  close(server);
+  
+  char *token;
+  char get_command[256];
+  memset(get_command, 0, sizeof(get_command));
+
+
+  char get_commands[10][128];
+  int current_command_counter = 0;
+
+  token = strtok(server_list_response_buffer, "\n");
+  while( token != NULL ) 
+  {
+    printf("This is our file name: %s\n", token );
+    strcpy(get_command, "GET ");
+    strcat(get_command, token);
+    if ( (strncmp(token, "File List:", 10)) == 0)
+      printf("This needs to be ignored\n");
+    else {
+      printf("And this is our get command: %s\n", get_command);
+      strcpy(get_commands[current_command_counter], get_command);
+      current_command_counter++;
+    }
+    /*
+       if ( (handle_get(get_command, params, matrix, locations)) == -2)
+       */
+    token = strtok(NULL, "\n");
+    memset(get_command, 0, sizeof(get_command));
+  }
+
+  int r;
+  for (r=0; r < current_command_counter; r++) {
+    if ( (handle_get(get_commands[r], params, matrix, locations)) == -2)
+      printf("%s [incomplete]\n", get_commands[r]+4);
+    else
+      printf("%s [complete]\n", get_commands[r]+4);
+  }
+
+
+
   return 0;
 }
 /*--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------

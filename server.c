@@ -318,13 +318,13 @@ void client_handler(int client, int port_number, struct Username_Passwords *name
   {
     printf("We have a list method to deal with\n");
 
-    // buffer and return value ssize_t variables used to store thumbs up message from client telling the server to send the portion number message
     char client_ready_for_list_files_message_buffer[64];
     memset(&client_ready_for_list_files_message_buffer, sizeof(client_ready_for_list_files_message_buffer), 0);
     ssize_t client_ready_for_list_files_size;
 
     client_ready_for_list_files_size = recv(client, client_ready_for_list_files_message_buffer, 64, 0);
     printf("Client: %s\n", client_ready_for_list_files_message_buffer);
+
     char list_response_body[1024];
     memset(&list_response_body, sizeof(list_response_body), 0);
     construct_file_list_body(username, list_response_body);
@@ -477,13 +477,11 @@ void client_handler(int client, int port_number, struct Username_Passwords *name
 void construct_file_list_body(char *user_name, char *list_response_body) {
 
   strcpy(list_response_body, "File List: \n");
-  printf("Hello from list_body building\n");
 
   char generic_dfs_folder_name [] = "%s/%s/";
   char dfs_path[sizeof(generic_dfs_folder_name) + 64];
   memset(&dfs_path, 0, sizeof(dfs_path));
   snprintf(dfs_path, sizeof(dfs_path), generic_dfs_folder_name, "DFS1", user_name);
-  printf("This is our second constructed file path (via snprintf): %s\n", dfs_path);
 
   DIR *dp;
   struct dirent *ep;
@@ -518,16 +516,13 @@ void construct_file_list_body(char *user_name, char *list_response_body) {
       for (i = 0; i < 10; i++) {
         file_already_exists_in_list = 0;
         if ( (strncmp(unique_file_list[i], truncated_file_name, strlen(truncated_file_name))) == 0) {
-          printf("we have matching files, no need to add this one\n");
           file_already_exists_in_list = 1;
           break;
         }
         else {
-          printf("This file name was not found in our list, time to continue looking...\n");
         }
       }
       if (file_already_exists_in_list == 0) {
-        printf("This filename was never found in our list, we must add it, and increment the number of current files\n");
         strcpy(unique_file_list[current_file_count], truncated_file_name);
         current_file_count++;
         strcat(list_response_body, truncated_file_name);
@@ -538,7 +533,6 @@ void construct_file_list_body(char *user_name, char *list_response_body) {
   }
   else
     printf("Couldn't open the directory");
-    
 }
 
 void construct_get_response_header(char *file_name, char *get_response_header) {

@@ -57,5 +57,5 @@ void deleteSubstring(char *original_string,const char *sub_string);
 void parse_client_conf_file(struct ClientFileContent *params, char *file_name);
 int handle_get (char *get_command, struct ClientFileContent *params, struct FileDistributionCombination *matrix, struct FilePortionLocations *locations);
 int handle_put (char *put_command, struct ClientFileContent *params, struct FileDistributionCombination *matrix);
-int handle_list (char *list_command, struct ClientFileContent *params, struct FileDistributionCombination *matrix);
+int handle_list (char *list_command, struct ClientFileContent *params, struct FileDistributionCombination *matrix, struct FilePortionLocations *locations);
 
