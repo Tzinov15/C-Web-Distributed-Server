@@ -1,0 +1,5 @@
+./server DFS1/ 10001 &
+./server DFS2/ 10002 &
+./server DFS3/ 10003 &
+./server DFS4/ 10004 &
+

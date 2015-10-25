@@ -112,6 +112,7 @@ void parse_server_conf_file(struct Username_Passwords *name_password) {
     counter++;
   }
 
+  fclose(config_file);
 }
 
 /*---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -272,6 +273,7 @@ void create_file_from_portion(char *file_name, char *body, int port_number, char
   file_portion=fopen(full_file_path, "a");
 
   fwrite(body, 1, strlen(body), file_portion);
+  fclose(file_portion);
 }
 /*----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  * client_handler - this is the function that gets first called by the child (client) process. It receives the initial request and proceeds onward with error handling, parsing, and file serving
@@ -477,7 +479,6 @@ void client_handler(int client, int port_number, struct Username_Passwords *name
 void construct_file_list_body(char *user_name, char *list_response_body, int port_number) {
 
 
-  char server_number_char[2];
   int server_number;
 
   // Set up the filename by adding server number, a dot, and the original filename passed in
