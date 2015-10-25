@@ -482,15 +482,14 @@ void construct_file_list_body(char *user_name, char *list_response_body, int por
 
   // Set up the filename by adding server number, a dot, and the original filename passed in
   server_number = port_number - 10000;
-  sprintf(server_number_char, "%d", server_number);
 
     
   strcpy(list_response_body, "File List: \n");
 
-  char generic_dfs_folder_name [] = "%s/%s/";
+  char generic_dfs_folder_name [] = "DFS%d/%s/";
   char dfs_path[sizeof(generic_dfs_folder_name) + 64];
   memset(&dfs_path, 0, sizeof(dfs_path));
-  snprintf(dfs_path, sizeof(dfs_path), generic_dfs_folder_name, server_number_char, user_name);
+  snprintf(dfs_path, sizeof(dfs_path), generic_dfs_folder_name, server_number, user_name);
   printf("Inside of construct file_list_body on the server, this is the file name for the current dir: %s\n", dfs_path);
 
   DIR *dp;

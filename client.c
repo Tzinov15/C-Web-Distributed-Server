@@ -50,6 +50,97 @@ int main(int argc, char ** argv) {
 }
 
 
+int can_file_be_reconstructed (char *get_command, struct ClientFileContent *params, struct FileDistributionCombination *matrix, struct FilePortionLocations *locations) {
+
+  // Reset the values for the portion location matrix so that we start with zero of the necassary four portion locations
+  int l;
+  for (l = 0; l < 4; l++)
+  {
+    locations->portion_locations[l][0] = 111;
+    locations->portion_locations[l][1] = 111;
+  }
+  // Structs needed to be able to call the stat function which checks for file presence 
+  struct stat;
+  // file_name used in strtok_r to capture content after space, read_line is buffer that fgets writes to 
+  char *file_name, *extra_args;
+
+  /*-----------------------------------
+   * Error Checking / Input Validation
+   *----------------------------------- */
+  // Extract the second word from the GET command (the filename) and strip it of newline character 
+  strtok_r(get_command, " ", &file_name);
+  if (file_name == NULL) {
+    printf("You have not specified a file to download. Please try again...\n");
+    return 1;
+  }
+
+  // Extract any potential arguments following our file name which should not be there 
+  strtok_r(file_name, " ", &extra_args);
+  if (extra_args != NULL) {
+    printf("You have specified too many arguments. Please try again...\n");
+    return 1;
+  }
+
+  /*------------------------
+   * File Download Operations
+   *------------------------*/
+  ssize_t server_header_ack_size;
+  char server_header_ack_buffer[64];
+
+  char message_pn_header[256];
+  char recv_pn_response_ack[] = "Received the PNs!";
+  char thumbs_up_ack[] = "I'm ready for the PNs!";
+  char server_message_buffer[1024];
+  ssize_t server_message_size;
+  construct_getpn_header(file_name, params, message_pn_header);
+
+  int i;
+  int server;
+  // the following loop will go to a server, extract the portion numbers for the file that we wish to get, write them into our location matrix
+  // It will then check if our location matrix is complete (meaning we have enough workign servers to reconstruct our file), and if we do, exit the loop
+  // If we do not have have enough, it will continue on to the next server 
+  for (i = 1; i < 5; i++)
+  {
+    if ( (server = create_socket_to_server(i, params)) == -1) {
+      continue;
+    }
+
+    if ( (send(server, message_pn_header, strlen(message_pn_header), 0)) == -1) {
+      printf("Error with sending the header to server %d\n", i);
+      continue;
+    }
+    server_header_ack_size = recv(server, server_header_ack_buffer, 1024, 0);
+    printf("Server: %s\n",server_header_ack_buffer );
+
+    if ( (send(server, thumbs_up_ack, strlen(thumbs_up_ack), 0)) == -1) {
+      printf("Error with sending the thumbs up ack to server %d\n", i);
+      continue;
+    }
+    server_message_size = recv(server, server_message_buffer, 1024, 0);
+    printf("Server: %s\n",server_message_buffer );
+
+    if ( (send(server, recv_pn_response_ack, strlen(recv_pn_response_ack), 0)) == -1) {
+      printf("Error with sending the ack to server %d\n", i);
+      continue;
+    }
+    update_locations_array(server_message_buffer, locations,i);
+    if ( (check_locations_array(locations)) == 0) {
+      printf("We have enough portions!! Time to start retreving actual file content!\n");
+      break;
+    }
+    else
+    memset(&server_message_buffer, 0, sizeof(server_message_buffer));
+    close(server);
+  }
+
+  if ( (check_locations_array(locations)) != 0) {
+    printf("Uh oh, it appears that even after going all servers we still don't have enough portions for build the file...\n");
+    printf("File is incomplete\n");
+    return -2;
+  }
+  else
+    return 0;
+  }
 /*-------------------------------------------------------------------------------------------------------
  * handle_get - this function will be responsible for downloading the selected file from the DFS servers
  *------------------------------------------------------------------------------------------------------- */
@@ -649,7 +740,7 @@ int handle_list (char *list_command, struct ClientFileContent *params, struct Fi
   int server;
   int q;
   for (q = 1; q < 5; q++) {
-    if ( (server = create_socket_to_server(q, params)) == -2) {
+    if ( (server = create_socket_to_server(q, params)) == -1) {
       printf("This is a broken server, cannot go to it for file list info\n");
       continue;
     }
@@ -715,7 +806,7 @@ int handle_list (char *list_command, struct ClientFileContent *params, struct Fi
 
   int r;
   for (r=0; r < current_command_counter; r++) {
-    if ( (handle_get(get_commands[r], params, matrix, locations)) == -2)
+    if ( (can_file_be_reconstructed(get_commands[r], params, matrix, locations)) == -2)
       printf("%s [incomplete]\n", get_commands[r]+4);
     else
       printf("%s [complete]\n", get_commands[r]+4);
